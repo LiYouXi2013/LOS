@@ -1,5 +1,0 @@
-{
-    "code-runner.runInTerminal": true,   // 在终端中运行
-    "code-runner.saveFileBeforeRun": true,
-    "makefile.makePath": "R:\\LOS\\make" // 运行前保存文件
-}
