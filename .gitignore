@@ -1,3 +1,5 @@
 tools/
 .vscode/
 LOS.img
+.gitignore
+make.exe
