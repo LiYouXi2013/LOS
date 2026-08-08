@@ -1,5 +1,7 @@
 tools/
 .vscode/
+build/
 LOS.img
 .gitignore
 make.exe
+loader.bin

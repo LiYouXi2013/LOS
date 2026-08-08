@@ -1,17 +1,25 @@
-compile:
-	./tools/nasm boot.asm -o boot.bin
-	./tools/nasm loader.asm -o loader.bin
+.SILENT:
 
-build: boot.bin
-	./tools/dd if=/dev/zero of=./LOS.img bs=512 count=16
-	./tools/dd conv=notrunc if=boot.bin of=LOS.img
-	./tools/dd conv=notrunc if=loader.bin of=LOS.img seek=1
+init:
+	echo "=================== Init ==================="
+	mkdir -p build/
 
-run: LOS.img
-	./tools/qemu-system-i386 LOS.img
+compile: init
+	echo "=================== Compile ==================="
+	nasm src/boot/boot.asm -i src/include/ -o build/boot.bin
+	nasm src/loader/loader.asm -i src/include/ -o build/loader.bin
 
-all: compile build run
+build: compile
+	echo "=================== Build ==================="
+	dd if=/dev/zero of=build/LOS.img bs=512 count=16
+	dd conv=notrunc if=build/boot.bin of=build/LOS.img
+	dd conv=notrunc if=build/loader.bin of=build/LOS.img seek=1
+
+run: build
+	echo "=================== Run ==================="
+	qemu-system-i386 -drive format=raw,file=build/LOS.img
+
+all: run
 	
-debug: compile build
-	start_debug.bat
-	
+debug: build
+	./scripts/debug.sh

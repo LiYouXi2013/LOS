@@ -1,4 +1,4 @@
-%include "boot.inc"
+%include "../include/macros.inc"
 
 org 0x7c00
 
