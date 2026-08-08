@@ -1,0 +1,1 @@
+start tools/qemu-system-i386 LOS.img -s -S -d int,mmu

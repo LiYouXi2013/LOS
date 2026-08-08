@@ -1,0 +1,16 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "QEMU Remote Debug (gdb)",
+            "type": "gdb",
+            "request": "attach",      // 注意：远程调试用 attach 或 launch
+            "target": "localhost:1234",
+            "remote": true,
+            "cwd": "${workspaceFolder}",
+            "executable": "",
+            "stopAtEntry": true,
+            "preLaunchTask": "Run-Dbg"   // 与 tasks.json 中的 label 一致
+        }
+    ]
+}
