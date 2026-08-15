@@ -1,4 +1,4 @@
-%include "boot.inc"
+%include "../include/macros.inc"
 
 section loader vstart=LOADER_BASE_ADDR
 
