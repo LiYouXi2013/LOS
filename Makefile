@@ -1,25 +1,27 @@
 .SILENT:
 
 init:
-	echo "=================== Init ==================="
-	mkdir -p build/
+	echo =================== Init ===================
+	mkdir build
 
-compile: init
-	echo "=================== Compile ==================="
+compile: 
+	echo =================== Compile ===================
 	nasm src/boot/boot.asm -i src/include/ -o build/boot.bin
 	nasm src/loader/loader.asm -i src/include/ -o build/loader.bin
 
 build: compile
-	echo "=================== Build ==================="
+	echo =================== Build ===================
 	dd if=/dev/zero of=build/LOS.img bs=512 count=16
-	dd conv=notrunc if=build/boot.bin of=build/LOS.img
-	dd conv=notrunc if=build/loader.bin of=build/LOS.img seek=1
+	dd if=build/boot.bin of=build/LOS.img
+	dd if=build/loader.bin of=build/LOS.img seek=1
 
 run: build
-	echo "=================== Run ==================="
+	echo =================== Run ===================
 	qemu-system-i386 -drive format=raw,file=build/LOS.img
 
 all: run
 	
 debug: build
-	./scripts/debug.sh
+	echo ================ Run In Dbg ===============
+	echo (Waiting for gdb helper)
+	qemu-system-i386 build/LOS.img -s -S -d int,mmu

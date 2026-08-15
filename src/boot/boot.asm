@@ -159,8 +159,8 @@ Error:
     mov byte [gs:0xBE],'E'
     mov byte [gs:0xBF],0x04
 
-    mov byte [gs:0xCA],'R'
-    mov byte [gs:0xCB],0x04
+    mov byte [gs:0xC0],'R'
+    mov byte [gs:0xC1],0x04
     
     
 

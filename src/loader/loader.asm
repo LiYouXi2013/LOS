@@ -4,7 +4,7 @@ section loader vstart=LOADER_BASE_ADDR
 
 [bits 16]
 
-db "27MARK11"
+db "27MARK11" ;检测是否加载成功的标识
 
 jmp main16
 
@@ -25,12 +25,6 @@ gdt:
 lgdt_value:
 	dw $-gdt-1	;高16位表示表的最后一个字节的偏移（表的大小-1） 
 	dd gdt		;低32位表示起始位置（GDT的物理地址）
-
-SELECTOR_CODE	equ	0x0001<<3
-SELECTOR_DATA	equ	0x0002<<3
-SELECTOR_VIDEO	equ	0x0003<<3
-STACK_TOP equ 0x90000
-
 
 main16:
     mov byte [gs:0xA0],'['
@@ -82,6 +76,6 @@ main32:
     mov byte [gs:0xB4],'R'
     mov byte [gs:0xB6],'3'
     mov byte [gs:0xB8],'2'
+;1945年8月15日日本投降(现在是2026年8月15日21:53:37)
 
-;页表
-    
+
