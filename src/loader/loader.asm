@@ -84,7 +84,7 @@ main32:
     mov byte [gs:0xB8],'3'
     mov byte [gs:0xBA],'2'
 
-    db 0x0f,0x0b
+    ;db 0x0f,0x0b 
 
 .halt:
     hlt
