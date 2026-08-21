@@ -84,11 +84,7 @@ main32:
     mov byte [gs:0xB8],'3'
     mov byte [gs:0xBA],'2'
 
-    ;db 0x0f,0x0b 
-
-.halt:
-    hlt
-    jmp .halt
+    jmp setup_page
 
 init_idt:
     mov edi,IDT_BASE
@@ -123,3 +119,54 @@ exception_default:
 .halt:
     hlt
     jmp .halt
+
+setup_page:
+    mov edi, PD
+    mov ecx, 1024
+    xor eax, eax
+    rep stosd
+
+    mov edi, PT
+    mov ecx, 1024
+    xor eax, eax
+    rep stosd
+    
+    mov dword [PD], PT + 0x3
+
+    mov edi, PT
+    xor eax, eax
+    mov ecx, 1024
+.fill_pt:
+    mov edx, eax
+    or edx, 0x3
+    mov [edi], edx
+    add edi, 4
+    add eax, 4096
+    loop .fill_pt
+
+    mov eax, PD
+    mov cr3, eax
+
+    mov eax, cr0
+    or eax, 0x80000000
+    mov cr0, eax
+
+    jmp dword SELECTOR_CODE32:after_pg
+
+after_pg:
+    mov byte [gs:0xA0],'['
+    mov byte [gs:0xA2],'O'
+    mov byte [gs:0xA4],'K'
+    mov byte [gs:0xA6],']'
+    mov byte [gs:0xA8],' '  
+    mov byte [gs:0xAA],'L'
+    mov byte [gs:0xAC],'O'
+    mov byte [gs:0xAE],'A' 
+    mov byte [gs:0xB0],'D'
+    mov byte [gs:0xB2],'E'
+    mov byte [gs:0xB4],'R'
+    mov byte [gs:0xB8],'3'
+    mov byte [gs:0xBA],'2'
+    mov byte [gs:0xBE],'P'
+    mov byte [gs:0xC0],'G'
+    mov byte [gs:0xC2],'2'
