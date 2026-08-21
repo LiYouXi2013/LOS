@@ -1,0 +1,189 @@
+     1                                  %include "../include/macros.inc"
+     1                              <1> LOADER_BASE_ADDR equ 0xA97
+     2                              <1> LOADER_START_SECTOR equ 0x1
+     3                              <1> LOADER_SECTORS equ 0x10
+     4                              <1> 
+     5                              <1> SELECTOR_CODE32	equ	0x0001<<3
+     6                              <1> SELECTOR_DATA32	equ	0x0002<<3
+     7                              <1> SELECTOR_VIDEO	equ	0x0003<<3
+     8                              <1> 
+     9                              <1> IDT_LIMIT equ 256*8-1
+    10                              <1> 
+     2                                  
+     3                                  org 0x7c00
+     4                                  
+     5 00000000 32374D41524B3131        db "27MARK11"
+     6                                  
+     7 00000008 EB50                    jmp start
+     8                                  
+     9                                  rdsk:
+    10 0000000A 6689C6                      mov esi,eax
+    11 0000000D 89CF                        mov di,cx
+    12                                      
+    13                                      ;设置欲读取扇区数量
+    14 0000000F BAF201                          mov dx,0x1f2
+    15 00000012 88C8                            mov al,cl
+    16 00000014 EE                              out dx,al
+    17                                  
+    18 00000015 6689F0                          mov eax,esi ;恢复
+    19                                  
+    20                                      ;写LBA地址
+    21 00000018 BAF301                          mov dx,0x1f3
+    22 0000001B EE                              out dx,al
+    23                                  
+    24 0000001C B108                            mov cl,8
+    25 0000001E 66D3E8                          shr eax,cl
+    26 00000021 BAF401                          mov dx,0x1f4
+    27 00000024 EE                              out dx,al
+    28                                          
+    29 00000025 66D3E8                          shr eax,cl
+    30 00000028 BAF501                          mov dx,0x1f5
+    31 0000002B EE                              out dx,al
+    32                                  
+    33 0000002C 66D3E8                          shr eax,cl
+    34 0000002F 240F                            and al,0x0f
+    35 00000031 0CE0                            or al,0xe0
+    36 00000033 BAF601                          mov dx,0x1f6
+    37 00000036 EE                              out dx,al
+    38                                  
+    39                                      ;写"写"指令
+    40 00000037 BAF701                          mov dx,0x1f7
+    41 0000003A B020                            mov al,0x20
+    42 0000003C EE                              out dx,al
+    43                                      
+    44                                      ;检测状态
+    45                                      .not_ready:
+    46 0000003D 90                              nop
+    47 0000003E EC                              in al,dx
+    48 0000003F 2488                            and al,0x88
+    49 00000041 3C08                            cmp al,0x08
+    50 00000043 75F8                            jnz .not_ready
+    51                                  
+    52                                      ;从0x1f0读数据
+    53 00000045 89F8                            mov ax,di
+    54 00000047 BA0001                          mov dx,256
+    55 0000004A F7E2                            mul dx
+    56 0000004C 89C1                            mov cx,ax
+    57                                  
+    58 0000004E BAF001                          mov dx,0x1f0
+    59                                  
+    60                                      .go_on_read:
+    61 00000051 ED                              in ax,dx
+    62 00000052 8907                            mov [bx],ax
+    63 00000054 83C302                          add bx,2
+    64                                          
+    65 00000057 E2F8                            loop .go_on_read
+    66 00000059 C3                              ret
+    67                                      
+    68                                  
+    69                                  ;============== 主程序 ==============
+    70                                  start:
+    71                                      ;Init
+    72 0000005A 31C0                        xor ax,ax
+    73 0000005C 8ED8                        mov ds,ax
+    74 0000005E 8EC0                        mov es,ax
+    75 00000060 8ED0                        mov ss,ax
+    76 00000062 8EE0                        mov fs,ax
+    77 00000064 BC007C                      mov sp,0x7c00
+    78 00000067 B800B8                      mov ax,0xb800
+    79 0000006A 8EE8                        mov gs,ax
+    80                                  
+    81 0000006C B406                        mov ah,06h
+    82 0000006E B000                        mov al,00h
+    83 00000070 B702                        mov bh,02h
+    84 00000072 B90000                      mov cx,0x0000
+    85 00000075 BA4F18                      mov dx,0x184F
+    86 00000078 CD10                        int 10h
+    87                                  
+    88 0000007A 65C60600005B                mov byte [gs:0x00],'['
+    89 00000080 65C60602004F                mov byte [gs:0x02],'O'
+    90 00000086 65C60604004B                mov byte [gs:0x04],'K'
+    91 0000008C 65C60606005D                mov byte [gs:0x06],']'
+    92 00000092 65C606080020                mov byte [gs:0x08],' '
+    93 00000098 65C6060A004D                mov byte [gs:0x0A],'M'
+    94 0000009E 65C6060C0042                mov byte [gs:0x0C],'B'
+    95 000000A4 65C6060E0052                mov byte [gs:0x0E],'R'
+    96                                  
+    97                                      ;Read Loader
+    98 000000AA 66B801000000                mov eax,LOADER_START_SECTOR	 ; 起始扇区lba地址
+    99 000000B0 BB970A                      mov bx,LOADER_BASE_ADDR       ; 写入的内存地址
+   100 000000B3 B91000                      mov cx,LOADER_SECTORS	 ; 待读入的扇区数
+   101 000000B6 E851FF                      call rdsk		
+   102                                  
+   103 000000B9 66BD00000000                mov ebp,0
+   104                                  
+   105 000000BF 668B2E970A                  mov ebp,[LOADER_BASE_ADDR]
+   106 000000C4 6681FD32374D41              cmp ebp,0x414d3732
+   107                                  
+   108 000000CB 7505                        jne Error
+   109                                  
+   110 000000CD EA970A0000                  jmp 0x0000:LOADER_BASE_ADDR
+   111                                  
+   112                                  Error:
+   113                                  
+   114 000000D2 65C606A0005B                mov byte [gs:0xA0],'['
+   115 000000D8 65C606A10004                mov byte [gs:0xA1],0x04
+   116                                  
+   117 000000DE 65C606A20046                mov byte [gs:0xA2],'F'
+   118 000000E4 65C606A30004                mov byte [gs:0xA3],0x04
+   119                                      
+   120 000000EA 65C606A40041                mov byte [gs:0xA4],'A'
+   121 000000F0 65C606A50004                mov byte [gs:0xA5],0x04
+   122                                  
+   123 000000F6 65C606A60049                mov byte [gs:0xA6],'I'
+   124 000000FC 65C606A70004                mov byte [gs:0xA7],0x04
+   125                                  
+   126 00000102 65C606A8004C                mov byte [gs:0xA8],'L'
+   127 00000108 65C606A90004                mov byte [gs:0xA9],0x04
+   128                                  
+   129 0000010E 65C606AA005D                mov byte [gs:0xAA],']'
+   130 00000114 65C606AB0004                mov byte [gs:0xAB],0x04
+   131                                  
+   132 0000011A 65C606AC004C                mov byte [gs:0xAC],'L'
+   133 00000120 65C606AD0004                mov byte [gs:0xAD],0x04
+   134                                  
+   135 00000126 65C606AE004F                mov byte [gs:0xAE],'O'
+   136 0000012C 65C606AF0004                mov byte [gs:0xAF],0x04
+   137                                  
+   138 00000132 65C606B00041                mov byte [gs:0xB0],'A'
+   139 00000138 65C606B10004                mov byte [gs:0xB1],0x04
+   140                                  
+   141 0000013E 65C606B20044                mov byte [gs:0xB2],'D'
+   142 00000144 65C606B30004                mov byte [gs:0xB3],0x04
+   143                                  
+   144 0000014A 65C606B40020                mov byte [gs:0xB4],' '
+   145 00000150 65C606B50004                mov byte [gs:0xB5],0x04
+   146                                  
+   147 00000156 65C606B6004C                mov byte [gs:0xB6],'L'
+   148 0000015C 65C606B70004                mov byte [gs:0xB7],0x04
+   149                                  
+   150 00000162 65C606B8004F                mov byte [gs:0xB8],'O'
+   151 00000168 65C606B90004                mov byte [gs:0xB9],0x04
+   152                                  
+   153 0000016E 65C606BA0041                mov byte [gs:0xBA],'A'
+   154 00000174 65C606BB0004                mov byte [gs:0xBB],0x04
+   155                                  
+   156 0000017A 65C606BC0044                mov byte [gs:0xBC],'D'
+   157 00000180 65C606BD0004                mov byte [gs:0xBD],0x04
+   158                                  
+   159 00000186 65C606BE0045                mov byte [gs:0xBE],'E'
+   160 0000018C 65C606BF0004                mov byte [gs:0xBF],0x04
+   161                                  
+   162 00000192 65C606C00052                mov byte [gs:0xC0],'R'
+   163 00000198 65C606C10004                mov byte [gs:0xC1],0x04
+   164                                      
+   165                                      
+   166                                  
+   167                                  halt:
+   168 0000019E F4                          hlt
+   169 0000019F EBFD                        jmp halt
+   170                                  
+   171 000001A1 00<rep 1Dh>             times 446 - ($-$$) db 0
+   172                                  
+   173                                  ;分区表
+   174 000001BE 00<rep 10h>             times 16 db 0
+   175 000001CE 00<rep 10h>             times 16 db 0
+   176 000001DE 00<rep 10h>             times 16 db 0
+   177 000001EE 00<rep 10h>             times 16 db 0
+   178                                  
+   179 000001FE 55AA                    dw 0xaa55

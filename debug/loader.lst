@@ -1,0 +1,1500 @@
+     1                                  %include "../include/macros.inc"
+     1                              <1> LOADER_BASE_ADDR equ 0xA97
+     2                              <1> LOADER_START_SECTOR equ 0x1
+     3                              <1> LOADER_SECTORS equ 0x10
+     4                              <1> 
+     5                              <1> SELECTOR_CODE32	equ	0x0001<<3
+     6                              <1> SELECTOR_DATA32	equ	0x0002<<3
+     7                              <1> SELECTOR_VIDEO	equ	0x0003<<3
+     8                              <1> IDT_BASE equ 0x80001000
+     9                              <1> IDT_LIMIT equ 256*8-1
+    10                              <1> 
+    11                              <1> PD equ 0x100000
+    12                              <1> PT equ 0x101000
+     2                                  
+     3                                  section loader vstart=LOADER_BASE_ADDR
+     4                                  
+     5                                  [bits 16]
+     6                                  
+     7 00000000 32374D41524B3131        db "27MARK11" ;检测是否加载成功的标识
+     8                                  
+     9 00000008 EB2C                    jmp main16
+    10                                  
+    11                                  gdt:
+    12                                  ;0描述符
+    13 0000000A 00000000                	dd	0x00000000
+    14 0000000E 00000000                	dd	0x00000000
+    15                                  ;1描述符(32bit代码段描述符)
+    16 00000012 FFFF0000                	dd	0x0000ffff
+    17 00000016 0098CF00                	dd	0x00cf9800
+    18                                  ;2描述符(32bit数据段描述符)
+    19 0000001A FFFF0000                	dd	0x0000ffff
+    20 0000001E 0092CF00                	dd	0x00cf9200
+    21                                  ;3描述符(28Kb的视频段描述符)
+    22 00000022 FF6F0080                    dd	0x80006fff
+    23 00000026 0B924000                    dd	0x0040920b
+    24                                  
+    25                                  lgdt_value:
+    26 0000002A 1F00                    	dw $-gdt-1	;高16位表示表的最后一个字节的偏移（表的大小-1） 
+    27 0000002C [0A000000]              	dd gdt		;低32位表示起始位置（GDT的物理地址）
+    28                                  
+    29                                  idt_ptr:
+    30 00000030 FF07                        dw IDT_LIMIT
+    31 00000032 00100080                    dd IDT_BASE
+    32                                  
+    33                                  main16:
+    34 00000036 65C606A0005B                mov byte [gs:0xA0],'['
+    35 0000003C 65C606A2004F                mov byte [gs:0xA2],'O'
+    36 00000042 65C606A4004B                mov byte [gs:0xA4],'K'
+    37 00000048 65C606A6005D                mov byte [gs:0xA6],']'
+    38 0000004E 65C606A80020                mov byte [gs:0xA8],' '  
+    39 00000054 65C606AA004C                mov byte [gs:0xAA],'L'
+    40 0000005A 65C606AC004F                mov byte [gs:0xAC],'O'
+    41 00000060 65C606AE0041                mov byte [gs:0xAE],'A' 
+    42 00000066 65C606B00044                mov byte [gs:0xB0],'D'
+    43 0000006C 65C606B20045                mov byte [gs:0xB2],'E'
+    44 00000072 65C606B40052                mov byte [gs:0xB4],'R'
+    45 00000078 65C606B80031                mov byte [gs:0xB8],'1'
+    46 0000007E 65C606BA0036                mov byte [gs:0xBA],'6'
+    47                                  
+    48 00000084 0F0116[2A00]                lgdt [lgdt_value]
+    49 00000089 E492                    	in al,0x92
+    50 0000008B 0C02                    	or al,0000_0010b
+    51 0000008D E692                    	out 0x92,al
+    52 0000008F FA                      	cli
+    53 00000090 0F20C0                  	mov eax,cr0
+    54 00000093 6683C801                	or eax,1
+    55 00000097 0F22C0                  	mov cr0,eax
+    56                                  	
+    57 0000009A 66EA[A2000000]0800      	jmp dword SELECTOR_CODE32:main32
+    58                                  
+    59                                  [bits 32]
+    60                                  
+    61                                  main32:
+    62 000000A2 66B81000                    mov ax,SELECTOR_DATA32
+    63 000000A6 8ED8                        mov ds,ax
+    64 000000A8 8EC0                        mov es,ax
+    65 000000AA 8ED0                        mov ss,ax
+    66 000000AC BC00000900                  mov esp,0x90000
+    67 000000B1 66B81800                    mov ax,SELECTOR_VIDEO
+    68 000000B5 8EE8                        mov gs,ax
+    69                                  
+    70 000000B7 E874000000                  call init_idt
+    71 000000BC 0F011D[30000000]            lidt [idt_ptr]
+    72                                  
+    73 000000C3 65C605A00000005B            mov byte [gs:0xA0],'['
+    74 000000CB 65C605A20000004F            mov byte [gs:0xA2],'O'
+    75 000000D3 65C605A40000004B            mov byte [gs:0xA4],'K'
+    76 000000DB 65C605A60000005D            mov byte [gs:0xA6],']'
+    77 000000E3 65C605A800000020            mov byte [gs:0xA8],' '  
+    78 000000EB 65C605AA0000004C            mov byte [gs:0xAA],'L'
+    79 000000F3 65C605AC0000004F            mov byte [gs:0xAC],'O'
+    80 000000FB 65C605AE00000041            mov byte [gs:0xAE],'A' 
+    81 00000103 65C605B000000044            mov byte [gs:0xB0],'D'
+    82 0000010B 65C605B200000045            mov byte [gs:0xB2],'E'
+    83 00000113 65C605B400000052            mov byte [gs:0xB4],'R'
+    84 0000011B 65C605B800000033            mov byte [gs:0xB8],'3'
+    85 00000123 65C605BA00000032            mov byte [gs:0xBA],'2'
+    86                                  
+    87 0000012B E96C0A0000                  jmp setup_page
+    88                                  
+    89                                  init_idt:
+    90 00000130 BF00100080                  mov edi,IDT_BASE
+    91 00000135 B900010000                  mov ecx,256
+    92 0000013A BB[62010000]                mov ebx,exception_stub0
+    93                                  
+    94                                  .set_gate:
+    95 0000013F 89D8                        mov eax,ebx
+    96 00000141 668907                      mov word [edi],ax
+    97 00000144 66C747020800                mov word [edi+2],SELECTOR_CODE32
+    98 0000014A C6470400                    mov byte [edi+4],0
+    99 0000014E C647058E                    mov byte [edi+5],0x8e
+   100 00000152 C1E810                      shr eax,16
+   101 00000155 66894706                    mov word [edi+6],ax
+   102 00000159 83C708                      add edi,8
+   103 0000015C 83C30A                      add ebx,10
+   104 0000015F E2DE                        loop .set_gate
+   105 00000161 C3                          ret
+   106                                  
+   107                                  %assign interrupt_id 0
+   108                                  %rep 256
+   109                                  exception_stub%+interrupt_id:
+   110                                      db 0x68
+   111                                      dd interrupt_id
+   112                                      jmp exception_default
+   113                                  %assign interrupt_id interrupt_id+1
+   114                                  %endrep
+   109                              <1> exception_stub%+interrupt_id:
+   110 00000162 68                  <1>  db 0x68
+   111 00000163 00000000            <1>  dd interrupt_id
+   112 00000167 E9BD090000          <1>  jmp exception_default
+   113                              <1> %assign interrupt_id interrupt_id+1
+   109                              <1> exception_stub%+interrupt_id:
+   110 0000016C 68                  <1>  db 0x68
+   111 0000016D 01000000            <1>  dd interrupt_id
+   112 00000171 E9B3090000          <1>  jmp exception_default
+   113                              <1> %assign interrupt_id interrupt_id+1
+   109                              <1> exception_stub%+interrupt_id:
+   110 00000176 68                  <1>  db 0x68
+   111 00000177 02000000            <1>  dd interrupt_id
+   112 0000017B E9A9090000          <1>  jmp exception_default
+   113                              <1> %assign interrupt_id interrupt_id+1
+   109                              <1> exception_stub%+interrupt_id:
+   110 00000180 68                  <1>  db 0x68
+   111 00000181 03000000            <1>  dd interrupt_id
+   112 00000185 E99F090000          <1>  jmp exception_default
+   113                              <1> %assign interrupt_id interrupt_id+1
+   109                              <1> exception_stub%+interrupt_id:
+   110 0000018A 68                  <1>  db 0x68
+   111 0000018B 04000000            <1>  dd interrupt_id
+   112 0000018F E995090000          <1>  jmp exception_default
+   113                              <1> %assign interrupt_id interrupt_id+1
+   109                              <1> exception_stub%+interrupt_id:
+   110 00000194 68                  <1>  db 0x68
+   111 00000195 05000000            <1>  dd interrupt_id
+   112 00000199 E98B090000          <1>  jmp exception_default
+   113                              <1> %assign interrupt_id interrupt_id+1
+   109                              <1> exception_stub%+interrupt_id:
+   110 0000019E 68                  <1>  db 0x68
+   111 0000019F 06000000            <1>  dd interrupt_id
+   112 000001A3 E981090000          <1>  jmp exception_default
+   113                              <1> %assign interrupt_id interrupt_id+1
+   109                              <1> exception_stub%+interrupt_id:
+   110 000001A8 68                  <1>  db 0x68
+   111 000001A9 07000000            <1>  dd interrupt_id
+   112 000001AD E977090000          <1>  jmp exception_default
+   113                              <1> %assign interrupt_id interrupt_id+1
+   109                              <1> exception_stub%+interrupt_id:
+   110 000001B2 68                  <1>  db 0x68
+   111 000001B3 08000000            <1>  dd interrupt_id
+   112 000001B7 E96D090000          <1>  jmp exception_default
+   113                              <1> %assign interrupt_id interrupt_id+1
+   109                              <1> exception_stub%+interrupt_id:
+   110 000001BC 68                  <1>  db 0x68
+   111 000001BD 09000000            <1>  dd interrupt_id
+   112 000001C1 E963090000          <1>  jmp exception_default
+   113                              <1> %assign interrupt_id interrupt_id+1
+   109                              <1> exception_stub%+interrupt_id:
+   110 000001C6 68                  <1>  db 0x68
+   111 000001C7 0A000000            <1>  dd interrupt_id
+   112 000001CB E959090000          <1>  jmp exception_default
+   113                              <1> %assign interrupt_id interrupt_id+1
+   109                              <1> exception_stub%+interrupt_id:
+   110 000001D0 68                  <1>  db 0x68
+   111 000001D1 0B000000            <1>  dd interrupt_id
+   112 000001D5 E94F090000          <1>  jmp exception_default
+   113                              <1> %assign interrupt_id interrupt_id+1
+   109                              <1> exception_stub%+interrupt_id:
+   110 000001DA 68                  <1>  db 0x68
+   111 000001DB 0C000000            <1>  dd interrupt_id
+   112 000001DF E945090000          <1>  jmp exception_default
+   113                              <1> %assign interrupt_id interrupt_id+1
+   109                              <1> exception_stub%+interrupt_id:
+   110 000001E4 68                  <1>  db 0x68
+   111 000001E5 0D000000            <1>  dd interrupt_id
+   112 000001E9 E93B090000          <1>  jmp exception_default
+   113                              <1> %assign interrupt_id interrupt_id+1
+   109                              <1> exception_stub%+interrupt_id:
+   110 000001EE 68                  <1>  db 0x68
+   111 000001EF 0E000000            <1>  dd interrupt_id
+   112 000001F3 E931090000          <1>  jmp exception_default
+   113                              <1> %assign interrupt_id interrupt_id+1
+   109                              <1> exception_stub%+interrupt_id:
+   110 000001F8 68                  <1>  db 0x68
+   111 000001F9 0F000000            <1>  dd interrupt_id
+   112 000001FD E927090000          <1>  jmp exception_default
+   113                              <1> %assign interrupt_id interrupt_id+1
+   109                              <1> exception_stub%+interrupt_id:
+   110 00000202 68                  <1>  db 0x68
+   111 00000203 10000000            <1>  dd interrupt_id
+   112 00000207 E91D090000          <1>  jmp exception_default
+   113                              <1> %assign interrupt_id interrupt_id+1
+   109                              <1> exception_stub%+interrupt_id:
+   110 0000020C 68                  <1>  db 0x68
+   111 0000020D 11000000            <1>  dd interrupt_id
+   112 00000211 E913090000          <1>  jmp exception_default
+   113                              <1> %assign interrupt_id interrupt_id+1
+   109                              <1> exception_stub%+interrupt_id:
+   110 00000216 68                  <1>  db 0x68
+   111 00000217 12000000            <1>  dd interrupt_id
+   112 0000021B E909090000          <1>  jmp exception_default
+   113                              <1> %assign interrupt_id interrupt_id+1
+   109                              <1> exception_stub%+interrupt_id:
+   110 00000220 68                  <1>  db 0x68
+   111 00000221 13000000            <1>  dd interrupt_id
+   112 00000225 E9FF080000          <1>  jmp exception_default
+   113                              <1> %assign interrupt_id interrupt_id+1
+   109                              <1> exception_stub%+interrupt_id:
+   110 0000022A 68                  <1>  db 0x68
+   111 0000022B 14000000            <1>  dd interrupt_id
+   112 0000022F E9F5080000          <1>  jmp exception_default
+   113                              <1> %assign interrupt_id interrupt_id+1
+   109                              <1> exception_stub%+interrupt_id:
+   110 00000234 68                  <1>  db 0x68
+   111 00000235 15000000            <1>  dd interrupt_id
+   112 00000239 E9EB080000          <1>  jmp exception_default
+   113                              <1> %assign interrupt_id interrupt_id+1
+   109                              <1> exception_stub%+interrupt_id:
+   110 0000023E 68                  <1>  db 0x68
+   111 0000023F 16000000            <1>  dd interrupt_id
+   112 00000243 E9E1080000          <1>  jmp exception_default
+   113                              <1> %assign interrupt_id interrupt_id+1
+   109                              <1> exception_stub%+interrupt_id:
+   110 00000248 68                  <1>  db 0x68
+   111 00000249 17000000            <1>  dd interrupt_id
+   112 0000024D E9D7080000          <1>  jmp exception_default
+   113                              <1> %assign interrupt_id interrupt_id+1
+   109                              <1> exception_stub%+interrupt_id:
+   110 00000252 68                  <1>  db 0x68
+   111 00000253 18000000            <1>  dd interrupt_id
+   112 00000257 E9CD080000          <1>  jmp exception_default
+   113                              <1> %assign interrupt_id interrupt_id+1
+   109                              <1> exception_stub%+interrupt_id:
+   110 0000025C 68                  <1>  db 0x68
+   111 0000025D 19000000            <1>  dd interrupt_id
+   112 00000261 E9C3080000          <1>  jmp exception_default
+   113                              <1> %assign interrupt_id interrupt_id+1
+   109                              <1> exception_stub%+interrupt_id:
+   110 00000266 68                  <1>  db 0x68
+   111 00000267 1A000000            <1>  dd interrupt_id
+   112 0000026B E9B9080000          <1>  jmp exception_default
+   113                              <1> %assign interrupt_id interrupt_id+1
+   109                              <1> exception_stub%+interrupt_id:
+   110 00000270 68                  <1>  db 0x68
+   111 00000271 1B000000            <1>  dd interrupt_id
+   112 00000275 E9AF080000          <1>  jmp exception_default
+   113                              <1> %assign interrupt_id interrupt_id+1
+   109                              <1> exception_stub%+interrupt_id:
+   110 0000027A 68                  <1>  db 0x68
+   111 0000027B 1C000000            <1>  dd interrupt_id
+   112 0000027F E9A5080000          <1>  jmp exception_default
+   113                              <1> %assign interrupt_id interrupt_id+1
+   109                              <1> exception_stub%+interrupt_id:
+   110 00000284 68                  <1>  db 0x68
+   111 00000285 1D000000            <1>  dd interrupt_id
+   112 00000289 E99B080000          <1>  jmp exception_default
+   113                              <1> %assign interrupt_id interrupt_id+1
+   109                              <1> exception_stub%+interrupt_id:
+   110 0000028E 68                  <1>  db 0x68
+   111 0000028F 1E000000            <1>  dd interrupt_id
+   112 00000293 E991080000          <1>  jmp exception_default
+   113                              <1> %assign interrupt_id interrupt_id+1
+   109                              <1> exception_stub%+interrupt_id:
+   110 00000298 68                  <1>  db 0x68
+   111 00000299 1F000000            <1>  dd interrupt_id
+   112 0000029D E987080000          <1>  jmp exception_default
+   113                              <1> %assign interrupt_id interrupt_id+1
+   109                              <1> exception_stub%+interrupt_id:
+   110 000002A2 68                  <1>  db 0x68
+   111 000002A3 20000000            <1>  dd interrupt_id
+   112 000002A7 E97D080000          <1>  jmp exception_default
+   113                              <1> %assign interrupt_id interrupt_id+1
+   109                              <1> exception_stub%+interrupt_id:
+   110 000002AC 68                  <1>  db 0x68
+   111 000002AD 21000000            <1>  dd interrupt_id
+   112 000002B1 E973080000          <1>  jmp exception_default
+   113                              <1> %assign interrupt_id interrupt_id+1
+   109                              <1> exception_stub%+interrupt_id:
+   110 000002B6 68                  <1>  db 0x68
+   111 000002B7 22000000            <1>  dd interrupt_id
+   112 000002BB E969080000          <1>  jmp exception_default
+   113                              <1> %assign interrupt_id interrupt_id+1
+   109                              <1> exception_stub%+interrupt_id:
+   110 000002C0 68                  <1>  db 0x68
+   111 000002C1 23000000            <1>  dd interrupt_id
+   112 000002C5 E95F080000          <1>  jmp exception_default
+   113                              <1> %assign interrupt_id interrupt_id+1
+   109                              <1> exception_stub%+interrupt_id:
+   110 000002CA 68                  <1>  db 0x68
+   111 000002CB 24000000            <1>  dd interrupt_id
+   112 000002CF E955080000          <1>  jmp exception_default
+   113                              <1> %assign interrupt_id interrupt_id+1
+   109                              <1> exception_stub%+interrupt_id:
+   110 000002D4 68                  <1>  db 0x68
+   111 000002D5 25000000            <1>  dd interrupt_id
+   112 000002D9 E94B080000          <1>  jmp exception_default
+   113                              <1> %assign interrupt_id interrupt_id+1
+   109                              <1> exception_stub%+interrupt_id:
+   110 000002DE 68                  <1>  db 0x68
+   111 000002DF 26000000            <1>  dd interrupt_id
+   112 000002E3 E941080000          <1>  jmp exception_default
+   113                              <1> %assign interrupt_id interrupt_id+1
+   109                              <1> exception_stub%+interrupt_id:
+   110 000002E8 68                  <1>  db 0x68
+   111 000002E9 27000000            <1>  dd interrupt_id
+   112 000002ED E937080000          <1>  jmp exception_default
+   113                              <1> %assign interrupt_id interrupt_id+1
+   109                              <1> exception_stub%+interrupt_id:
+   110 000002F2 68                  <1>  db 0x68
+   111 000002F3 28000000            <1>  dd interrupt_id
+   112 000002F7 E92D080000          <1>  jmp exception_default
+   113                              <1> %assign interrupt_id interrupt_id+1
+   109                              <1> exception_stub%+interrupt_id:
+   110 000002FC 68                  <1>  db 0x68
+   111 000002FD 29000000            <1>  dd interrupt_id
+   112 00000301 E923080000          <1>  jmp exception_default
+   113                              <1> %assign interrupt_id interrupt_id+1
+   109                              <1> exception_stub%+interrupt_id:
+   110 00000306 68                  <1>  db 0x68
+   111 00000307 2A000000            <1>  dd interrupt_id
+   112 0000030B E919080000          <1>  jmp exception_default
+   113                              <1> %assign interrupt_id interrupt_id+1
+   109                              <1> exception_stub%+interrupt_id:
+   110 00000310 68                  <1>  db 0x68
+   111 00000311 2B000000            <1>  dd interrupt_id
+   112 00000315 E90F080000          <1>  jmp exception_default
+   113                              <1> %assign interrupt_id interrupt_id+1
+   109                              <1> exception_stub%+interrupt_id:
+   110 0000031A 68                  <1>  db 0x68
+   111 0000031B 2C000000            <1>  dd interrupt_id
+   112 0000031F E905080000          <1>  jmp exception_default
+   113                              <1> %assign interrupt_id interrupt_id+1
+   109                              <1> exception_stub%+interrupt_id:
+   110 00000324 68                  <1>  db 0x68
+   111 00000325 2D000000            <1>  dd interrupt_id
+   112 00000329 E9FB070000          <1>  jmp exception_default
+   113                              <1> %assign interrupt_id interrupt_id+1
+   109                              <1> exception_stub%+interrupt_id:
+   110 0000032E 68                  <1>  db 0x68
+   111 0000032F 2E000000            <1>  dd interrupt_id
+   112 00000333 E9F1070000          <1>  jmp exception_default
+   113                              <1> %assign interrupt_id interrupt_id+1
+   109                              <1> exception_stub%+interrupt_id:
+   110 00000338 68                  <1>  db 0x68
+   111 00000339 2F000000            <1>  dd interrupt_id
+   112 0000033D E9E7070000          <1>  jmp exception_default
+   113                              <1> %assign interrupt_id interrupt_id+1
+   109                              <1> exception_stub%+interrupt_id:
+   110 00000342 68                  <1>  db 0x68
+   111 00000343 30000000            <1>  dd interrupt_id
+   112 00000347 E9DD070000          <1>  jmp exception_default
+   113                              <1> %assign interrupt_id interrupt_id+1
+   109                              <1> exception_stub%+interrupt_id:
+   110 0000034C 68                  <1>  db 0x68
+   111 0000034D 31000000            <1>  dd interrupt_id
+   112 00000351 E9D3070000          <1>  jmp exception_default
+   113                              <1> %assign interrupt_id interrupt_id+1
+   109                              <1> exception_stub%+interrupt_id:
+   110 00000356 68                  <1>  db 0x68
+   111 00000357 32000000            <1>  dd interrupt_id
+   112 0000035B E9C9070000          <1>  jmp exception_default
+   113                              <1> %assign interrupt_id interrupt_id+1
+   109                              <1> exception_stub%+interrupt_id:
+   110 00000360 68                  <1>  db 0x68
+   111 00000361 33000000            <1>  dd interrupt_id
+   112 00000365 E9BF070000          <1>  jmp exception_default
+   113                              <1> %assign interrupt_id interrupt_id+1
+   109                              <1> exception_stub%+interrupt_id:
+   110 0000036A 68                  <1>  db 0x68
+   111 0000036B 34000000            <1>  dd interrupt_id
+   112 0000036F E9B5070000          <1>  jmp exception_default
+   113                              <1> %assign interrupt_id interrupt_id+1
+   109                              <1> exception_stub%+interrupt_id:
+   110 00000374 68                  <1>  db 0x68
+   111 00000375 35000000            <1>  dd interrupt_id
+   112 00000379 E9AB070000          <1>  jmp exception_default
+   113                              <1> %assign interrupt_id interrupt_id+1
+   109                              <1> exception_stub%+interrupt_id:
+   110 0000037E 68                  <1>  db 0x68
+   111 0000037F 36000000            <1>  dd interrupt_id
+   112 00000383 E9A1070000          <1>  jmp exception_default
+   113                              <1> %assign interrupt_id interrupt_id+1
+   109                              <1> exception_stub%+interrupt_id:
+   110 00000388 68                  <1>  db 0x68
+   111 00000389 37000000            <1>  dd interrupt_id
+   112 0000038D E997070000          <1>  jmp exception_default
+   113                              <1> %assign interrupt_id interrupt_id+1
+   109                              <1> exception_stub%+interrupt_id:
+   110 00000392 68                  <1>  db 0x68
+   111 00000393 38000000            <1>  dd interrupt_id
+   112 00000397 E98D070000          <1>  jmp exception_default
+   113                              <1> %assign interrupt_id interrupt_id+1
+   109                              <1> exception_stub%+interrupt_id:
+   110 0000039C 68                  <1>  db 0x68
+   111 0000039D 39000000            <1>  dd interrupt_id
+   112 000003A1 E983070000          <1>  jmp exception_default
+   113                              <1> %assign interrupt_id interrupt_id+1
+   109                              <1> exception_stub%+interrupt_id:
+   110 000003A6 68                  <1>  db 0x68
+   111 000003A7 3A000000            <1>  dd interrupt_id
+   112 000003AB E979070000          <1>  jmp exception_default
+   113                              <1> %assign interrupt_id interrupt_id+1
+   109                              <1> exception_stub%+interrupt_id:
+   110 000003B0 68                  <1>  db 0x68
+   111 000003B1 3B000000            <1>  dd interrupt_id
+   112 000003B5 E96F070000          <1>  jmp exception_default
+   113                              <1> %assign interrupt_id interrupt_id+1
+   109                              <1> exception_stub%+interrupt_id:
+   110 000003BA 68                  <1>  db 0x68
+   111 000003BB 3C000000            <1>  dd interrupt_id
+   112 000003BF E965070000          <1>  jmp exception_default
+   113                              <1> %assign interrupt_id interrupt_id+1
+   109                              <1> exception_stub%+interrupt_id:
+   110 000003C4 68                  <1>  db 0x68
+   111 000003C5 3D000000            <1>  dd interrupt_id
+   112 000003C9 E95B070000          <1>  jmp exception_default
+   113                              <1> %assign interrupt_id interrupt_id+1
+   109                              <1> exception_stub%+interrupt_id:
+   110 000003CE 68                  <1>  db 0x68
+   111 000003CF 3E000000            <1>  dd interrupt_id
+   112 000003D3 E951070000          <1>  jmp exception_default
+   113                              <1> %assign interrupt_id interrupt_id+1
+   109                              <1> exception_stub%+interrupt_id:
+   110 000003D8 68                  <1>  db 0x68
+   111 000003D9 3F000000            <1>  dd interrupt_id
+   112 000003DD E947070000          <1>  jmp exception_default
+   113                              <1> %assign interrupt_id interrupt_id+1
+   109                              <1> exception_stub%+interrupt_id:
+   110 000003E2 68                  <1>  db 0x68
+   111 000003E3 40000000            <1>  dd interrupt_id
+   112 000003E7 E93D070000          <1>  jmp exception_default
+   113                              <1> %assign interrupt_id interrupt_id+1
+   109                              <1> exception_stub%+interrupt_id:
+   110 000003EC 68                  <1>  db 0x68
+   111 000003ED 41000000            <1>  dd interrupt_id
+   112 000003F1 E933070000          <1>  jmp exception_default
+   113                              <1> %assign interrupt_id interrupt_id+1
+   109                              <1> exception_stub%+interrupt_id:
+   110 000003F6 68                  <1>  db 0x68
+   111 000003F7 42000000            <1>  dd interrupt_id
+   112 000003FB E929070000          <1>  jmp exception_default
+   113                              <1> %assign interrupt_id interrupt_id+1
+   109                              <1> exception_stub%+interrupt_id:
+   110 00000400 68                  <1>  db 0x68
+   111 00000401 43000000            <1>  dd interrupt_id
+   112 00000405 E91F070000          <1>  jmp exception_default
+   113                              <1> %assign interrupt_id interrupt_id+1
+   109                              <1> exception_stub%+interrupt_id:
+   110 0000040A 68                  <1>  db 0x68
+   111 0000040B 44000000            <1>  dd interrupt_id
+   112 0000040F E915070000          <1>  jmp exception_default
+   113                              <1> %assign interrupt_id interrupt_id+1
+   109                              <1> exception_stub%+interrupt_id:
+   110 00000414 68                  <1>  db 0x68
+   111 00000415 45000000            <1>  dd interrupt_id
+   112 00000419 E90B070000          <1>  jmp exception_default
+   113                              <1> %assign interrupt_id interrupt_id+1
+   109                              <1> exception_stub%+interrupt_id:
+   110 0000041E 68                  <1>  db 0x68
+   111 0000041F 46000000            <1>  dd interrupt_id
+   112 00000423 E901070000          <1>  jmp exception_default
+   113                              <1> %assign interrupt_id interrupt_id+1
+   109                              <1> exception_stub%+interrupt_id:
+   110 00000428 68                  <1>  db 0x68
+   111 00000429 47000000            <1>  dd interrupt_id
+   112 0000042D E9F7060000          <1>  jmp exception_default
+   113                              <1> %assign interrupt_id interrupt_id+1
+   109                              <1> exception_stub%+interrupt_id:
+   110 00000432 68                  <1>  db 0x68
+   111 00000433 48000000            <1>  dd interrupt_id
+   112 00000437 E9ED060000          <1>  jmp exception_default
+   113                              <1> %assign interrupt_id interrupt_id+1
+   109                              <1> exception_stub%+interrupt_id:
+   110 0000043C 68                  <1>  db 0x68
+   111 0000043D 49000000            <1>  dd interrupt_id
+   112 00000441 E9E3060000          <1>  jmp exception_default
+   113                              <1> %assign interrupt_id interrupt_id+1
+   109                              <1> exception_stub%+interrupt_id:
+   110 00000446 68                  <1>  db 0x68
+   111 00000447 4A000000            <1>  dd interrupt_id
+   112 0000044B E9D9060000          <1>  jmp exception_default
+   113                              <1> %assign interrupt_id interrupt_id+1
+   109                              <1> exception_stub%+interrupt_id:
+   110 00000450 68                  <1>  db 0x68
+   111 00000451 4B000000            <1>  dd interrupt_id
+   112 00000455 E9CF060000          <1>  jmp exception_default
+   113                              <1> %assign interrupt_id interrupt_id+1
+   109                              <1> exception_stub%+interrupt_id:
+   110 0000045A 68                  <1>  db 0x68
+   111 0000045B 4C000000            <1>  dd interrupt_id
+   112 0000045F E9C5060000          <1>  jmp exception_default
+   113                              <1> %assign interrupt_id interrupt_id+1
+   109                              <1> exception_stub%+interrupt_id:
+   110 00000464 68                  <1>  db 0x68
+   111 00000465 4D000000            <1>  dd interrupt_id
+   112 00000469 E9BB060000          <1>  jmp exception_default
+   113                              <1> %assign interrupt_id interrupt_id+1
+   109                              <1> exception_stub%+interrupt_id:
+   110 0000046E 68                  <1>  db 0x68
+   111 0000046F 4E000000            <1>  dd interrupt_id
+   112 00000473 E9B1060000          <1>  jmp exception_default
+   113                              <1> %assign interrupt_id interrupt_id+1
+   109                              <1> exception_stub%+interrupt_id:
+   110 00000478 68                  <1>  db 0x68
+   111 00000479 4F000000            <1>  dd interrupt_id
+   112 0000047D E9A7060000          <1>  jmp exception_default
+   113                              <1> %assign interrupt_id interrupt_id+1
+   109                              <1> exception_stub%+interrupt_id:
+   110 00000482 68                  <1>  db 0x68
+   111 00000483 50000000            <1>  dd interrupt_id
+   112 00000487 E99D060000          <1>  jmp exception_default
+   113                              <1> %assign interrupt_id interrupt_id+1
+   109                              <1> exception_stub%+interrupt_id:
+   110 0000048C 68                  <1>  db 0x68
+   111 0000048D 51000000            <1>  dd interrupt_id
+   112 00000491 E993060000          <1>  jmp exception_default
+   113                              <1> %assign interrupt_id interrupt_id+1
+   109                              <1> exception_stub%+interrupt_id:
+   110 00000496 68                  <1>  db 0x68
+   111 00000497 52000000            <1>  dd interrupt_id
+   112 0000049B E989060000          <1>  jmp exception_default
+   113                              <1> %assign interrupt_id interrupt_id+1
+   109                              <1> exception_stub%+interrupt_id:
+   110 000004A0 68                  <1>  db 0x68
+   111 000004A1 53000000            <1>  dd interrupt_id
+   112 000004A5 E97F060000          <1>  jmp exception_default
+   113                              <1> %assign interrupt_id interrupt_id+1
+   109                              <1> exception_stub%+interrupt_id:
+   110 000004AA 68                  <1>  db 0x68
+   111 000004AB 54000000            <1>  dd interrupt_id
+   112 000004AF E975060000          <1>  jmp exception_default
+   113                              <1> %assign interrupt_id interrupt_id+1
+   109                              <1> exception_stub%+interrupt_id:
+   110 000004B4 68                  <1>  db 0x68
+   111 000004B5 55000000            <1>  dd interrupt_id
+   112 000004B9 E96B060000          <1>  jmp exception_default
+   113                              <1> %assign interrupt_id interrupt_id+1
+   109                              <1> exception_stub%+interrupt_id:
+   110 000004BE 68                  <1>  db 0x68
+   111 000004BF 56000000            <1>  dd interrupt_id
+   112 000004C3 E961060000          <1>  jmp exception_default
+   113                              <1> %assign interrupt_id interrupt_id+1
+   109                              <1> exception_stub%+interrupt_id:
+   110 000004C8 68                  <1>  db 0x68
+   111 000004C9 57000000            <1>  dd interrupt_id
+   112 000004CD E957060000          <1>  jmp exception_default
+   113                              <1> %assign interrupt_id interrupt_id+1
+   109                              <1> exception_stub%+interrupt_id:
+   110 000004D2 68                  <1>  db 0x68
+   111 000004D3 58000000            <1>  dd interrupt_id
+   112 000004D7 E94D060000          <1>  jmp exception_default
+   113                              <1> %assign interrupt_id interrupt_id+1
+   109                              <1> exception_stub%+interrupt_id:
+   110 000004DC 68                  <1>  db 0x68
+   111 000004DD 59000000            <1>  dd interrupt_id
+   112 000004E1 E943060000          <1>  jmp exception_default
+   113                              <1> %assign interrupt_id interrupt_id+1
+   109                              <1> exception_stub%+interrupt_id:
+   110 000004E6 68                  <1>  db 0x68
+   111 000004E7 5A000000            <1>  dd interrupt_id
+   112 000004EB E939060000          <1>  jmp exception_default
+   113                              <1> %assign interrupt_id interrupt_id+1
+   109                              <1> exception_stub%+interrupt_id:
+   110 000004F0 68                  <1>  db 0x68
+   111 000004F1 5B000000            <1>  dd interrupt_id
+   112 000004F5 E92F060000          <1>  jmp exception_default
+   113                              <1> %assign interrupt_id interrupt_id+1
+   109                              <1> exception_stub%+interrupt_id:
+   110 000004FA 68                  <1>  db 0x68
+   111 000004FB 5C000000            <1>  dd interrupt_id
+   112 000004FF E925060000          <1>  jmp exception_default
+   113                              <1> %assign interrupt_id interrupt_id+1
+   109                              <1> exception_stub%+interrupt_id:
+   110 00000504 68                  <1>  db 0x68
+   111 00000505 5D000000            <1>  dd interrupt_id
+   112 00000509 E91B060000          <1>  jmp exception_default
+   113                              <1> %assign interrupt_id interrupt_id+1
+   109                              <1> exception_stub%+interrupt_id:
+   110 0000050E 68                  <1>  db 0x68
+   111 0000050F 5E000000            <1>  dd interrupt_id
+   112 00000513 E911060000          <1>  jmp exception_default
+   113                              <1> %assign interrupt_id interrupt_id+1
+   109                              <1> exception_stub%+interrupt_id:
+   110 00000518 68                  <1>  db 0x68
+   111 00000519 5F000000            <1>  dd interrupt_id
+   112 0000051D E907060000          <1>  jmp exception_default
+   113                              <1> %assign interrupt_id interrupt_id+1
+   109                              <1> exception_stub%+interrupt_id:
+   110 00000522 68                  <1>  db 0x68
+   111 00000523 60000000            <1>  dd interrupt_id
+   112 00000527 E9FD050000          <1>  jmp exception_default
+   113                              <1> %assign interrupt_id interrupt_id+1
+   109                              <1> exception_stub%+interrupt_id:
+   110 0000052C 68                  <1>  db 0x68
+   111 0000052D 61000000            <1>  dd interrupt_id
+   112 00000531 E9F3050000          <1>  jmp exception_default
+   113                              <1> %assign interrupt_id interrupt_id+1
+   109                              <1> exception_stub%+interrupt_id:
+   110 00000536 68                  <1>  db 0x68
+   111 00000537 62000000            <1>  dd interrupt_id
+   112 0000053B E9E9050000          <1>  jmp exception_default
+   113                              <1> %assign interrupt_id interrupt_id+1
+   109                              <1> exception_stub%+interrupt_id:
+   110 00000540 68                  <1>  db 0x68
+   111 00000541 63000000            <1>  dd interrupt_id
+   112 00000545 E9DF050000          <1>  jmp exception_default
+   113                              <1> %assign interrupt_id interrupt_id+1
+   109                              <1> exception_stub%+interrupt_id:
+   110 0000054A 68                  <1>  db 0x68
+   111 0000054B 64000000            <1>  dd interrupt_id
+   112 0000054F E9D5050000          <1>  jmp exception_default
+   113                              <1> %assign interrupt_id interrupt_id+1
+   109                              <1> exception_stub%+interrupt_id:
+   110 00000554 68                  <1>  db 0x68
+   111 00000555 65000000            <1>  dd interrupt_id
+   112 00000559 E9CB050000          <1>  jmp exception_default
+   113                              <1> %assign interrupt_id interrupt_id+1
+   109                              <1> exception_stub%+interrupt_id:
+   110 0000055E 68                  <1>  db 0x68
+   111 0000055F 66000000            <1>  dd interrupt_id
+   112 00000563 E9C1050000          <1>  jmp exception_default
+   113                              <1> %assign interrupt_id interrupt_id+1
+   109                              <1> exception_stub%+interrupt_id:
+   110 00000568 68                  <1>  db 0x68
+   111 00000569 67000000            <1>  dd interrupt_id
+   112 0000056D E9B7050000          <1>  jmp exception_default
+   113                              <1> %assign interrupt_id interrupt_id+1
+   109                              <1> exception_stub%+interrupt_id:
+   110 00000572 68                  <1>  db 0x68
+   111 00000573 68000000            <1>  dd interrupt_id
+   112 00000577 E9AD050000          <1>  jmp exception_default
+   113                              <1> %assign interrupt_id interrupt_id+1
+   109                              <1> exception_stub%+interrupt_id:
+   110 0000057C 68                  <1>  db 0x68
+   111 0000057D 69000000            <1>  dd interrupt_id
+   112 00000581 E9A3050000          <1>  jmp exception_default
+   113                              <1> %assign interrupt_id interrupt_id+1
+   109                              <1> exception_stub%+interrupt_id:
+   110 00000586 68                  <1>  db 0x68
+   111 00000587 6A000000            <1>  dd interrupt_id
+   112 0000058B E999050000          <1>  jmp exception_default
+   113                              <1> %assign interrupt_id interrupt_id+1
+   109                              <1> exception_stub%+interrupt_id:
+   110 00000590 68                  <1>  db 0x68
+   111 00000591 6B000000            <1>  dd interrupt_id
+   112 00000595 E98F050000          <1>  jmp exception_default
+   113                              <1> %assign interrupt_id interrupt_id+1
+   109                              <1> exception_stub%+interrupt_id:
+   110 0000059A 68                  <1>  db 0x68
+   111 0000059B 6C000000            <1>  dd interrupt_id
+   112 0000059F E985050000          <1>  jmp exception_default
+   113                              <1> %assign interrupt_id interrupt_id+1
+   109                              <1> exception_stub%+interrupt_id:
+   110 000005A4 68                  <1>  db 0x68
+   111 000005A5 6D000000            <1>  dd interrupt_id
+   112 000005A9 E97B050000          <1>  jmp exception_default
+   113                              <1> %assign interrupt_id interrupt_id+1
+   109                              <1> exception_stub%+interrupt_id:
+   110 000005AE 68                  <1>  db 0x68
+   111 000005AF 6E000000            <1>  dd interrupt_id
+   112 000005B3 E971050000          <1>  jmp exception_default
+   113                              <1> %assign interrupt_id interrupt_id+1
+   109                              <1> exception_stub%+interrupt_id:
+   110 000005B8 68                  <1>  db 0x68
+   111 000005B9 6F000000            <1>  dd interrupt_id
+   112 000005BD E967050000          <1>  jmp exception_default
+   113                              <1> %assign interrupt_id interrupt_id+1
+   109                              <1> exception_stub%+interrupt_id:
+   110 000005C2 68                  <1>  db 0x68
+   111 000005C3 70000000            <1>  dd interrupt_id
+   112 000005C7 E95D050000          <1>  jmp exception_default
+   113                              <1> %assign interrupt_id interrupt_id+1
+   109                              <1> exception_stub%+interrupt_id:
+   110 000005CC 68                  <1>  db 0x68
+   111 000005CD 71000000            <1>  dd interrupt_id
+   112 000005D1 E953050000          <1>  jmp exception_default
+   113                              <1> %assign interrupt_id interrupt_id+1
+   109                              <1> exception_stub%+interrupt_id:
+   110 000005D6 68                  <1>  db 0x68
+   111 000005D7 72000000            <1>  dd interrupt_id
+   112 000005DB E949050000          <1>  jmp exception_default
+   113                              <1> %assign interrupt_id interrupt_id+1
+   109                              <1> exception_stub%+interrupt_id:
+   110 000005E0 68                  <1>  db 0x68
+   111 000005E1 73000000            <1>  dd interrupt_id
+   112 000005E5 E93F050000          <1>  jmp exception_default
+   113                              <1> %assign interrupt_id interrupt_id+1
+   109                              <1> exception_stub%+interrupt_id:
+   110 000005EA 68                  <1>  db 0x68
+   111 000005EB 74000000            <1>  dd interrupt_id
+   112 000005EF E935050000          <1>  jmp exception_default
+   113                              <1> %assign interrupt_id interrupt_id+1
+   109                              <1> exception_stub%+interrupt_id:
+   110 000005F4 68                  <1>  db 0x68
+   111 000005F5 75000000            <1>  dd interrupt_id
+   112 000005F9 E92B050000          <1>  jmp exception_default
+   113                              <1> %assign interrupt_id interrupt_id+1
+   109                              <1> exception_stub%+interrupt_id:
+   110 000005FE 68                  <1>  db 0x68
+   111 000005FF 76000000            <1>  dd interrupt_id
+   112 00000603 E921050000          <1>  jmp exception_default
+   113                              <1> %assign interrupt_id interrupt_id+1
+   109                              <1> exception_stub%+interrupt_id:
+   110 00000608 68                  <1>  db 0x68
+   111 00000609 77000000            <1>  dd interrupt_id
+   112 0000060D E917050000          <1>  jmp exception_default
+   113                              <1> %assign interrupt_id interrupt_id+1
+   109                              <1> exception_stub%+interrupt_id:
+   110 00000612 68                  <1>  db 0x68
+   111 00000613 78000000            <1>  dd interrupt_id
+   112 00000617 E90D050000          <1>  jmp exception_default
+   113                              <1> %assign interrupt_id interrupt_id+1
+   109                              <1> exception_stub%+interrupt_id:
+   110 0000061C 68                  <1>  db 0x68
+   111 0000061D 79000000            <1>  dd interrupt_id
+   112 00000621 E903050000          <1>  jmp exception_default
+   113                              <1> %assign interrupt_id interrupt_id+1
+   109                              <1> exception_stub%+interrupt_id:
+   110 00000626 68                  <1>  db 0x68
+   111 00000627 7A000000            <1>  dd interrupt_id
+   112 0000062B E9F9040000          <1>  jmp exception_default
+   113                              <1> %assign interrupt_id interrupt_id+1
+   109                              <1> exception_stub%+interrupt_id:
+   110 00000630 68                  <1>  db 0x68
+   111 00000631 7B000000            <1>  dd interrupt_id
+   112 00000635 E9EF040000          <1>  jmp exception_default
+   113                              <1> %assign interrupt_id interrupt_id+1
+   109                              <1> exception_stub%+interrupt_id:
+   110 0000063A 68                  <1>  db 0x68
+   111 0000063B 7C000000            <1>  dd interrupt_id
+   112 0000063F E9E5040000          <1>  jmp exception_default
+   113                              <1> %assign interrupt_id interrupt_id+1
+   109                              <1> exception_stub%+interrupt_id:
+   110 00000644 68                  <1>  db 0x68
+   111 00000645 7D000000            <1>  dd interrupt_id
+   112 00000649 E9DB040000          <1>  jmp exception_default
+   113                              <1> %assign interrupt_id interrupt_id+1
+   109                              <1> exception_stub%+interrupt_id:
+   110 0000064E 68                  <1>  db 0x68
+   111 0000064F 7E000000            <1>  dd interrupt_id
+   112 00000653 E9D1040000          <1>  jmp exception_default
+   113                              <1> %assign interrupt_id interrupt_id+1
+   109                              <1> exception_stub%+interrupt_id:
+   110 00000658 68                  <1>  db 0x68
+   111 00000659 7F000000            <1>  dd interrupt_id
+   112 0000065D E9C7040000          <1>  jmp exception_default
+   113                              <1> %assign interrupt_id interrupt_id+1
+   109                              <1> exception_stub%+interrupt_id:
+   110 00000662 68                  <1>  db 0x68
+   111 00000663 80000000            <1>  dd interrupt_id
+   112 00000667 E9BD040000          <1>  jmp exception_default
+   113                              <1> %assign interrupt_id interrupt_id+1
+   109                              <1> exception_stub%+interrupt_id:
+   110 0000066C 68                  <1>  db 0x68
+   111 0000066D 81000000            <1>  dd interrupt_id
+   112 00000671 E9B3040000          <1>  jmp exception_default
+   113                              <1> %assign interrupt_id interrupt_id+1
+   109                              <1> exception_stub%+interrupt_id:
+   110 00000676 68                  <1>  db 0x68
+   111 00000677 82000000            <1>  dd interrupt_id
+   112 0000067B E9A9040000          <1>  jmp exception_default
+   113                              <1> %assign interrupt_id interrupt_id+1
+   109                              <1> exception_stub%+interrupt_id:
+   110 00000680 68                  <1>  db 0x68
+   111 00000681 83000000            <1>  dd interrupt_id
+   112 00000685 E99F040000          <1>  jmp exception_default
+   113                              <1> %assign interrupt_id interrupt_id+1
+   109                              <1> exception_stub%+interrupt_id:
+   110 0000068A 68                  <1>  db 0x68
+   111 0000068B 84000000            <1>  dd interrupt_id
+   112 0000068F E995040000          <1>  jmp exception_default
+   113                              <1> %assign interrupt_id interrupt_id+1
+   109                              <1> exception_stub%+interrupt_id:
+   110 00000694 68                  <1>  db 0x68
+   111 00000695 85000000            <1>  dd interrupt_id
+   112 00000699 E98B040000          <1>  jmp exception_default
+   113                              <1> %assign interrupt_id interrupt_id+1
+   109                              <1> exception_stub%+interrupt_id:
+   110 0000069E 68                  <1>  db 0x68
+   111 0000069F 86000000            <1>  dd interrupt_id
+   112 000006A3 E981040000          <1>  jmp exception_default
+   113                              <1> %assign interrupt_id interrupt_id+1
+   109                              <1> exception_stub%+interrupt_id:
+   110 000006A8 68                  <1>  db 0x68
+   111 000006A9 87000000            <1>  dd interrupt_id
+   112 000006AD E977040000          <1>  jmp exception_default
+   113                              <1> %assign interrupt_id interrupt_id+1
+   109                              <1> exception_stub%+interrupt_id:
+   110 000006B2 68                  <1>  db 0x68
+   111 000006B3 88000000            <1>  dd interrupt_id
+   112 000006B7 E96D040000          <1>  jmp exception_default
+   113                              <1> %assign interrupt_id interrupt_id+1
+   109                              <1> exception_stub%+interrupt_id:
+   110 000006BC 68                  <1>  db 0x68
+   111 000006BD 89000000            <1>  dd interrupt_id
+   112 000006C1 E963040000          <1>  jmp exception_default
+   113                              <1> %assign interrupt_id interrupt_id+1
+   109                              <1> exception_stub%+interrupt_id:
+   110 000006C6 68                  <1>  db 0x68
+   111 000006C7 8A000000            <1>  dd interrupt_id
+   112 000006CB E959040000          <1>  jmp exception_default
+   113                              <1> %assign interrupt_id interrupt_id+1
+   109                              <1> exception_stub%+interrupt_id:
+   110 000006D0 68                  <1>  db 0x68
+   111 000006D1 8B000000            <1>  dd interrupt_id
+   112 000006D5 E94F040000          <1>  jmp exception_default
+   113                              <1> %assign interrupt_id interrupt_id+1
+   109                              <1> exception_stub%+interrupt_id:
+   110 000006DA 68                  <1>  db 0x68
+   111 000006DB 8C000000            <1>  dd interrupt_id
+   112 000006DF E945040000          <1>  jmp exception_default
+   113                              <1> %assign interrupt_id interrupt_id+1
+   109                              <1> exception_stub%+interrupt_id:
+   110 000006E4 68                  <1>  db 0x68
+   111 000006E5 8D000000            <1>  dd interrupt_id
+   112 000006E9 E93B040000          <1>  jmp exception_default
+   113                              <1> %assign interrupt_id interrupt_id+1
+   109                              <1> exception_stub%+interrupt_id:
+   110 000006EE 68                  <1>  db 0x68
+   111 000006EF 8E000000            <1>  dd interrupt_id
+   112 000006F3 E931040000          <1>  jmp exception_default
+   113                              <1> %assign interrupt_id interrupt_id+1
+   109                              <1> exception_stub%+interrupt_id:
+   110 000006F8 68                  <1>  db 0x68
+   111 000006F9 8F000000            <1>  dd interrupt_id
+   112 000006FD E927040000          <1>  jmp exception_default
+   113                              <1> %assign interrupt_id interrupt_id+1
+   109                              <1> exception_stub%+interrupt_id:
+   110 00000702 68                  <1>  db 0x68
+   111 00000703 90000000            <1>  dd interrupt_id
+   112 00000707 E91D040000          <1>  jmp exception_default
+   113                              <1> %assign interrupt_id interrupt_id+1
+   109                              <1> exception_stub%+interrupt_id:
+   110 0000070C 68                  <1>  db 0x68
+   111 0000070D 91000000            <1>  dd interrupt_id
+   112 00000711 E913040000          <1>  jmp exception_default
+   113                              <1> %assign interrupt_id interrupt_id+1
+   109                              <1> exception_stub%+interrupt_id:
+   110 00000716 68                  <1>  db 0x68
+   111 00000717 92000000            <1>  dd interrupt_id
+   112 0000071B E909040000          <1>  jmp exception_default
+   113                              <1> %assign interrupt_id interrupt_id+1
+   109                              <1> exception_stub%+interrupt_id:
+   110 00000720 68                  <1>  db 0x68
+   111 00000721 93000000            <1>  dd interrupt_id
+   112 00000725 E9FF030000          <1>  jmp exception_default
+   113                              <1> %assign interrupt_id interrupt_id+1
+   109                              <1> exception_stub%+interrupt_id:
+   110 0000072A 68                  <1>  db 0x68
+   111 0000072B 94000000            <1>  dd interrupt_id
+   112 0000072F E9F5030000          <1>  jmp exception_default
+   113                              <1> %assign interrupt_id interrupt_id+1
+   109                              <1> exception_stub%+interrupt_id:
+   110 00000734 68                  <1>  db 0x68
+   111 00000735 95000000            <1>  dd interrupt_id
+   112 00000739 E9EB030000          <1>  jmp exception_default
+   113                              <1> %assign interrupt_id interrupt_id+1
+   109                              <1> exception_stub%+interrupt_id:
+   110 0000073E 68                  <1>  db 0x68
+   111 0000073F 96000000            <1>  dd interrupt_id
+   112 00000743 E9E1030000          <1>  jmp exception_default
+   113                              <1> %assign interrupt_id interrupt_id+1
+   109                              <1> exception_stub%+interrupt_id:
+   110 00000748 68                  <1>  db 0x68
+   111 00000749 97000000            <1>  dd interrupt_id
+   112 0000074D E9D7030000          <1>  jmp exception_default
+   113                              <1> %assign interrupt_id interrupt_id+1
+   109                              <1> exception_stub%+interrupt_id:
+   110 00000752 68                  <1>  db 0x68
+   111 00000753 98000000            <1>  dd interrupt_id
+   112 00000757 E9CD030000          <1>  jmp exception_default
+   113                              <1> %assign interrupt_id interrupt_id+1
+   109                              <1> exception_stub%+interrupt_id:
+   110 0000075C 68                  <1>  db 0x68
+   111 0000075D 99000000            <1>  dd interrupt_id
+   112 00000761 E9C3030000          <1>  jmp exception_default
+   113                              <1> %assign interrupt_id interrupt_id+1
+   109                              <1> exception_stub%+interrupt_id:
+   110 00000766 68                  <1>  db 0x68
+   111 00000767 9A000000            <1>  dd interrupt_id
+   112 0000076B E9B9030000          <1>  jmp exception_default
+   113                              <1> %assign interrupt_id interrupt_id+1
+   109                              <1> exception_stub%+interrupt_id:
+   110 00000770 68                  <1>  db 0x68
+   111 00000771 9B000000            <1>  dd interrupt_id
+   112 00000775 E9AF030000          <1>  jmp exception_default
+   113                              <1> %assign interrupt_id interrupt_id+1
+   109                              <1> exception_stub%+interrupt_id:
+   110 0000077A 68                  <1>  db 0x68
+   111 0000077B 9C000000            <1>  dd interrupt_id
+   112 0000077F E9A5030000          <1>  jmp exception_default
+   113                              <1> %assign interrupt_id interrupt_id+1
+   109                              <1> exception_stub%+interrupt_id:
+   110 00000784 68                  <1>  db 0x68
+   111 00000785 9D000000            <1>  dd interrupt_id
+   112 00000789 E99B030000          <1>  jmp exception_default
+   113                              <1> %assign interrupt_id interrupt_id+1
+   109                              <1> exception_stub%+interrupt_id:
+   110 0000078E 68                  <1>  db 0x68
+   111 0000078F 9E000000            <1>  dd interrupt_id
+   112 00000793 E991030000          <1>  jmp exception_default
+   113                              <1> %assign interrupt_id interrupt_id+1
+   109                              <1> exception_stub%+interrupt_id:
+   110 00000798 68                  <1>  db 0x68
+   111 00000799 9F000000            <1>  dd interrupt_id
+   112 0000079D E987030000          <1>  jmp exception_default
+   113                              <1> %assign interrupt_id interrupt_id+1
+   109                              <1> exception_stub%+interrupt_id:
+   110 000007A2 68                  <1>  db 0x68
+   111 000007A3 A0000000            <1>  dd interrupt_id
+   112 000007A7 E97D030000          <1>  jmp exception_default
+   113                              <1> %assign interrupt_id interrupt_id+1
+   109                              <1> exception_stub%+interrupt_id:
+   110 000007AC 68                  <1>  db 0x68
+   111 000007AD A1000000            <1>  dd interrupt_id
+   112 000007B1 E973030000          <1>  jmp exception_default
+   113                              <1> %assign interrupt_id interrupt_id+1
+   109                              <1> exception_stub%+interrupt_id:
+   110 000007B6 68                  <1>  db 0x68
+   111 000007B7 A2000000            <1>  dd interrupt_id
+   112 000007BB E969030000          <1>  jmp exception_default
+   113                              <1> %assign interrupt_id interrupt_id+1
+   109                              <1> exception_stub%+interrupt_id:
+   110 000007C0 68                  <1>  db 0x68
+   111 000007C1 A3000000            <1>  dd interrupt_id
+   112 000007C5 E95F030000          <1>  jmp exception_default
+   113                              <1> %assign interrupt_id interrupt_id+1
+   109                              <1> exception_stub%+interrupt_id:
+   110 000007CA 68                  <1>  db 0x68
+   111 000007CB A4000000            <1>  dd interrupt_id
+   112 000007CF E955030000          <1>  jmp exception_default
+   113                              <1> %assign interrupt_id interrupt_id+1
+   109                              <1> exception_stub%+interrupt_id:
+   110 000007D4 68                  <1>  db 0x68
+   111 000007D5 A5000000            <1>  dd interrupt_id
+   112 000007D9 E94B030000          <1>  jmp exception_default
+   113                              <1> %assign interrupt_id interrupt_id+1
+   109                              <1> exception_stub%+interrupt_id:
+   110 000007DE 68                  <1>  db 0x68
+   111 000007DF A6000000            <1>  dd interrupt_id
+   112 000007E3 E941030000          <1>  jmp exception_default
+   113                              <1> %assign interrupt_id interrupt_id+1
+   109                              <1> exception_stub%+interrupt_id:
+   110 000007E8 68                  <1>  db 0x68
+   111 000007E9 A7000000            <1>  dd interrupt_id
+   112 000007ED E937030000          <1>  jmp exception_default
+   113                              <1> %assign interrupt_id interrupt_id+1
+   109                              <1> exception_stub%+interrupt_id:
+   110 000007F2 68                  <1>  db 0x68
+   111 000007F3 A8000000            <1>  dd interrupt_id
+   112 000007F7 E92D030000          <1>  jmp exception_default
+   113                              <1> %assign interrupt_id interrupt_id+1
+   109                              <1> exception_stub%+interrupt_id:
+   110 000007FC 68                  <1>  db 0x68
+   111 000007FD A9000000            <1>  dd interrupt_id
+   112 00000801 E923030000          <1>  jmp exception_default
+   113                              <1> %assign interrupt_id interrupt_id+1
+   109                              <1> exception_stub%+interrupt_id:
+   110 00000806 68                  <1>  db 0x68
+   111 00000807 AA000000            <1>  dd interrupt_id
+   112 0000080B E919030000          <1>  jmp exception_default
+   113                              <1> %assign interrupt_id interrupt_id+1
+   109                              <1> exception_stub%+interrupt_id:
+   110 00000810 68                  <1>  db 0x68
+   111 00000811 AB000000            <1>  dd interrupt_id
+   112 00000815 E90F030000          <1>  jmp exception_default
+   113                              <1> %assign interrupt_id interrupt_id+1
+   109                              <1> exception_stub%+interrupt_id:
+   110 0000081A 68                  <1>  db 0x68
+   111 0000081B AC000000            <1>  dd interrupt_id
+   112 0000081F E905030000          <1>  jmp exception_default
+   113                              <1> %assign interrupt_id interrupt_id+1
+   109                              <1> exception_stub%+interrupt_id:
+   110 00000824 68                  <1>  db 0x68
+   111 00000825 AD000000            <1>  dd interrupt_id
+   112 00000829 E9FB020000          <1>  jmp exception_default
+   113                              <1> %assign interrupt_id interrupt_id+1
+   109                              <1> exception_stub%+interrupt_id:
+   110 0000082E 68                  <1>  db 0x68
+   111 0000082F AE000000            <1>  dd interrupt_id
+   112 00000833 E9F1020000          <1>  jmp exception_default
+   113                              <1> %assign interrupt_id interrupt_id+1
+   109                              <1> exception_stub%+interrupt_id:
+   110 00000838 68                  <1>  db 0x68
+   111 00000839 AF000000            <1>  dd interrupt_id
+   112 0000083D E9E7020000          <1>  jmp exception_default
+   113                              <1> %assign interrupt_id interrupt_id+1
+   109                              <1> exception_stub%+interrupt_id:
+   110 00000842 68                  <1>  db 0x68
+   111 00000843 B0000000            <1>  dd interrupt_id
+   112 00000847 E9DD020000          <1>  jmp exception_default
+   113                              <1> %assign interrupt_id interrupt_id+1
+   109                              <1> exception_stub%+interrupt_id:
+   110 0000084C 68                  <1>  db 0x68
+   111 0000084D B1000000            <1>  dd interrupt_id
+   112 00000851 E9D3020000          <1>  jmp exception_default
+   113                              <1> %assign interrupt_id interrupt_id+1
+   109                              <1> exception_stub%+interrupt_id:
+   110 00000856 68                  <1>  db 0x68
+   111 00000857 B2000000            <1>  dd interrupt_id
+   112 0000085B E9C9020000          <1>  jmp exception_default
+   113                              <1> %assign interrupt_id interrupt_id+1
+   109                              <1> exception_stub%+interrupt_id:
+   110 00000860 68                  <1>  db 0x68
+   111 00000861 B3000000            <1>  dd interrupt_id
+   112 00000865 E9BF020000          <1>  jmp exception_default
+   113                              <1> %assign interrupt_id interrupt_id+1
+   109                              <1> exception_stub%+interrupt_id:
+   110 0000086A 68                  <1>  db 0x68
+   111 0000086B B4000000            <1>  dd interrupt_id
+   112 0000086F E9B5020000          <1>  jmp exception_default
+   113                              <1> %assign interrupt_id interrupt_id+1
+   109                              <1> exception_stub%+interrupt_id:
+   110 00000874 68                  <1>  db 0x68
+   111 00000875 B5000000            <1>  dd interrupt_id
+   112 00000879 E9AB020000          <1>  jmp exception_default
+   113                              <1> %assign interrupt_id interrupt_id+1
+   109                              <1> exception_stub%+interrupt_id:
+   110 0000087E 68                  <1>  db 0x68
+   111 0000087F B6000000            <1>  dd interrupt_id
+   112 00000883 E9A1020000          <1>  jmp exception_default
+   113                              <1> %assign interrupt_id interrupt_id+1
+   109                              <1> exception_stub%+interrupt_id:
+   110 00000888 68                  <1>  db 0x68
+   111 00000889 B7000000            <1>  dd interrupt_id
+   112 0000088D E997020000          <1>  jmp exception_default
+   113                              <1> %assign interrupt_id interrupt_id+1
+   109                              <1> exception_stub%+interrupt_id:
+   110 00000892 68                  <1>  db 0x68
+   111 00000893 B8000000            <1>  dd interrupt_id
+   112 00000897 E98D020000          <1>  jmp exception_default
+   113                              <1> %assign interrupt_id interrupt_id+1
+   109                              <1> exception_stub%+interrupt_id:
+   110 0000089C 68                  <1>  db 0x68
+   111 0000089D B9000000            <1>  dd interrupt_id
+   112 000008A1 E983020000          <1>  jmp exception_default
+   113                              <1> %assign interrupt_id interrupt_id+1
+   109                              <1> exception_stub%+interrupt_id:
+   110 000008A6 68                  <1>  db 0x68
+   111 000008A7 BA000000            <1>  dd interrupt_id
+   112 000008AB E979020000          <1>  jmp exception_default
+   113                              <1> %assign interrupt_id interrupt_id+1
+   109                              <1> exception_stub%+interrupt_id:
+   110 000008B0 68                  <1>  db 0x68
+   111 000008B1 BB000000            <1>  dd interrupt_id
+   112 000008B5 E96F020000          <1>  jmp exception_default
+   113                              <1> %assign interrupt_id interrupt_id+1
+   109                              <1> exception_stub%+interrupt_id:
+   110 000008BA 68                  <1>  db 0x68
+   111 000008BB BC000000            <1>  dd interrupt_id
+   112 000008BF E965020000          <1>  jmp exception_default
+   113                              <1> %assign interrupt_id interrupt_id+1
+   109                              <1> exception_stub%+interrupt_id:
+   110 000008C4 68                  <1>  db 0x68
+   111 000008C5 BD000000            <1>  dd interrupt_id
+   112 000008C9 E95B020000          <1>  jmp exception_default
+   113                              <1> %assign interrupt_id interrupt_id+1
+   109                              <1> exception_stub%+interrupt_id:
+   110 000008CE 68                  <1>  db 0x68
+   111 000008CF BE000000            <1>  dd interrupt_id
+   112 000008D3 E951020000          <1>  jmp exception_default
+   113                              <1> %assign interrupt_id interrupt_id+1
+   109                              <1> exception_stub%+interrupt_id:
+   110 000008D8 68                  <1>  db 0x68
+   111 000008D9 BF000000            <1>  dd interrupt_id
+   112 000008DD E947020000          <1>  jmp exception_default
+   113                              <1> %assign interrupt_id interrupt_id+1
+   109                              <1> exception_stub%+interrupt_id:
+   110 000008E2 68                  <1>  db 0x68
+   111 000008E3 C0000000            <1>  dd interrupt_id
+   112 000008E7 E93D020000          <1>  jmp exception_default
+   113                              <1> %assign interrupt_id interrupt_id+1
+   109                              <1> exception_stub%+interrupt_id:
+   110 000008EC 68                  <1>  db 0x68
+   111 000008ED C1000000            <1>  dd interrupt_id
+   112 000008F1 E933020000          <1>  jmp exception_default
+   113                              <1> %assign interrupt_id interrupt_id+1
+   109                              <1> exception_stub%+interrupt_id:
+   110 000008F6 68                  <1>  db 0x68
+   111 000008F7 C2000000            <1>  dd interrupt_id
+   112 000008FB E929020000          <1>  jmp exception_default
+   113                              <1> %assign interrupt_id interrupt_id+1
+   109                              <1> exception_stub%+interrupt_id:
+   110 00000900 68                  <1>  db 0x68
+   111 00000901 C3000000            <1>  dd interrupt_id
+   112 00000905 E91F020000          <1>  jmp exception_default
+   113                              <1> %assign interrupt_id interrupt_id+1
+   109                              <1> exception_stub%+interrupt_id:
+   110 0000090A 68                  <1>  db 0x68
+   111 0000090B C4000000            <1>  dd interrupt_id
+   112 0000090F E915020000          <1>  jmp exception_default
+   113                              <1> %assign interrupt_id interrupt_id+1
+   109                              <1> exception_stub%+interrupt_id:
+   110 00000914 68                  <1>  db 0x68
+   111 00000915 C5000000            <1>  dd interrupt_id
+   112 00000919 E90B020000          <1>  jmp exception_default
+   113                              <1> %assign interrupt_id interrupt_id+1
+   109                              <1> exception_stub%+interrupt_id:
+   110 0000091E 68                  <1>  db 0x68
+   111 0000091F C6000000            <1>  dd interrupt_id
+   112 00000923 E901020000          <1>  jmp exception_default
+   113                              <1> %assign interrupt_id interrupt_id+1
+   109                              <1> exception_stub%+interrupt_id:
+   110 00000928 68                  <1>  db 0x68
+   111 00000929 C7000000            <1>  dd interrupt_id
+   112 0000092D E9F7010000          <1>  jmp exception_default
+   113                              <1> %assign interrupt_id interrupt_id+1
+   109                              <1> exception_stub%+interrupt_id:
+   110 00000932 68                  <1>  db 0x68
+   111 00000933 C8000000            <1>  dd interrupt_id
+   112 00000937 E9ED010000          <1>  jmp exception_default
+   113                              <1> %assign interrupt_id interrupt_id+1
+   109                              <1> exception_stub%+interrupt_id:
+   110 0000093C 68                  <1>  db 0x68
+   111 0000093D C9000000            <1>  dd interrupt_id
+   112 00000941 E9E3010000          <1>  jmp exception_default
+   113                              <1> %assign interrupt_id interrupt_id+1
+   109                              <1> exception_stub%+interrupt_id:
+   110 00000946 68                  <1>  db 0x68
+   111 00000947 CA000000            <1>  dd interrupt_id
+   112 0000094B E9D9010000          <1>  jmp exception_default
+   113                              <1> %assign interrupt_id interrupt_id+1
+   109                              <1> exception_stub%+interrupt_id:
+   110 00000950 68                  <1>  db 0x68
+   111 00000951 CB000000            <1>  dd interrupt_id
+   112 00000955 E9CF010000          <1>  jmp exception_default
+   113                              <1> %assign interrupt_id interrupt_id+1
+   109                              <1> exception_stub%+interrupt_id:
+   110 0000095A 68                  <1>  db 0x68
+   111 0000095B CC000000            <1>  dd interrupt_id
+   112 0000095F E9C5010000          <1>  jmp exception_default
+   113                              <1> %assign interrupt_id interrupt_id+1
+   109                              <1> exception_stub%+interrupt_id:
+   110 00000964 68                  <1>  db 0x68
+   111 00000965 CD000000            <1>  dd interrupt_id
+   112 00000969 E9BB010000          <1>  jmp exception_default
+   113                              <1> %assign interrupt_id interrupt_id+1
+   109                              <1> exception_stub%+interrupt_id:
+   110 0000096E 68                  <1>  db 0x68
+   111 0000096F CE000000            <1>  dd interrupt_id
+   112 00000973 E9B1010000          <1>  jmp exception_default
+   113                              <1> %assign interrupt_id interrupt_id+1
+   109                              <1> exception_stub%+interrupt_id:
+   110 00000978 68                  <1>  db 0x68
+   111 00000979 CF000000            <1>  dd interrupt_id
+   112 0000097D E9A7010000          <1>  jmp exception_default
+   113                              <1> %assign interrupt_id interrupt_id+1
+   109                              <1> exception_stub%+interrupt_id:
+   110 00000982 68                  <1>  db 0x68
+   111 00000983 D0000000            <1>  dd interrupt_id
+   112 00000987 E99D010000          <1>  jmp exception_default
+   113                              <1> %assign interrupt_id interrupt_id+1
+   109                              <1> exception_stub%+interrupt_id:
+   110 0000098C 68                  <1>  db 0x68
+   111 0000098D D1000000            <1>  dd interrupt_id
+   112 00000991 E993010000          <1>  jmp exception_default
+   113                              <1> %assign interrupt_id interrupt_id+1
+   109                              <1> exception_stub%+interrupt_id:
+   110 00000996 68                  <1>  db 0x68
+   111 00000997 D2000000            <1>  dd interrupt_id
+   112 0000099B E989010000          <1>  jmp exception_default
+   113                              <1> %assign interrupt_id interrupt_id+1
+   109                              <1> exception_stub%+interrupt_id:
+   110 000009A0 68                  <1>  db 0x68
+   111 000009A1 D3000000            <1>  dd interrupt_id
+   112 000009A5 E97F010000          <1>  jmp exception_default
+   113                              <1> %assign interrupt_id interrupt_id+1
+   109                              <1> exception_stub%+interrupt_id:
+   110 000009AA 68                  <1>  db 0x68
+   111 000009AB D4000000            <1>  dd interrupt_id
+   112 000009AF E975010000          <1>  jmp exception_default
+   113                              <1> %assign interrupt_id interrupt_id+1
+   109                              <1> exception_stub%+interrupt_id:
+   110 000009B4 68                  <1>  db 0x68
+   111 000009B5 D5000000            <1>  dd interrupt_id
+   112 000009B9 E96B010000          <1>  jmp exception_default
+   113                              <1> %assign interrupt_id interrupt_id+1
+   109                              <1> exception_stub%+interrupt_id:
+   110 000009BE 68                  <1>  db 0x68
+   111 000009BF D6000000            <1>  dd interrupt_id
+   112 000009C3 E961010000          <1>  jmp exception_default
+   113                              <1> %assign interrupt_id interrupt_id+1
+   109                              <1> exception_stub%+interrupt_id:
+   110 000009C8 68                  <1>  db 0x68
+   111 000009C9 D7000000            <1>  dd interrupt_id
+   112 000009CD E957010000          <1>  jmp exception_default
+   113                              <1> %assign interrupt_id interrupt_id+1
+   109                              <1> exception_stub%+interrupt_id:
+   110 000009D2 68                  <1>  db 0x68
+   111 000009D3 D8000000            <1>  dd interrupt_id
+   112 000009D7 E94D010000          <1>  jmp exception_default
+   113                              <1> %assign interrupt_id interrupt_id+1
+   109                              <1> exception_stub%+interrupt_id:
+   110 000009DC 68                  <1>  db 0x68
+   111 000009DD D9000000            <1>  dd interrupt_id
+   112 000009E1 E943010000          <1>  jmp exception_default
+   113                              <1> %assign interrupt_id interrupt_id+1
+   109                              <1> exception_stub%+interrupt_id:
+   110 000009E6 68                  <1>  db 0x68
+   111 000009E7 DA000000            <1>  dd interrupt_id
+   112 000009EB E939010000          <1>  jmp exception_default
+   113                              <1> %assign interrupt_id interrupt_id+1
+   109                              <1> exception_stub%+interrupt_id:
+   110 000009F0 68                  <1>  db 0x68
+   111 000009F1 DB000000            <1>  dd interrupt_id
+   112 000009F5 E92F010000          <1>  jmp exception_default
+   113                              <1> %assign interrupt_id interrupt_id+1
+   109                              <1> exception_stub%+interrupt_id:
+   110 000009FA 68                  <1>  db 0x68
+   111 000009FB DC000000            <1>  dd interrupt_id
+   112 000009FF E925010000          <1>  jmp exception_default
+   113                              <1> %assign interrupt_id interrupt_id+1
+   109                              <1> exception_stub%+interrupt_id:
+   110 00000A04 68                  <1>  db 0x68
+   111 00000A05 DD000000            <1>  dd interrupt_id
+   112 00000A09 E91B010000          <1>  jmp exception_default
+   113                              <1> %assign interrupt_id interrupt_id+1
+   109                              <1> exception_stub%+interrupt_id:
+   110 00000A0E 68                  <1>  db 0x68
+   111 00000A0F DE000000            <1>  dd interrupt_id
+   112 00000A13 E911010000          <1>  jmp exception_default
+   113                              <1> %assign interrupt_id interrupt_id+1
+   109                              <1> exception_stub%+interrupt_id:
+   110 00000A18 68                  <1>  db 0x68
+   111 00000A19 DF000000            <1>  dd interrupt_id
+   112 00000A1D E907010000          <1>  jmp exception_default
+   113                              <1> %assign interrupt_id interrupt_id+1
+   109                              <1> exception_stub%+interrupt_id:
+   110 00000A22 68                  <1>  db 0x68
+   111 00000A23 E0000000            <1>  dd interrupt_id
+   112 00000A27 E9FD000000          <1>  jmp exception_default
+   113                              <1> %assign interrupt_id interrupt_id+1
+   109                              <1> exception_stub%+interrupt_id:
+   110 00000A2C 68                  <1>  db 0x68
+   111 00000A2D E1000000            <1>  dd interrupt_id
+   112 00000A31 E9F3000000          <1>  jmp exception_default
+   113                              <1> %assign interrupt_id interrupt_id+1
+   109                              <1> exception_stub%+interrupt_id:
+   110 00000A36 68                  <1>  db 0x68
+   111 00000A37 E2000000            <1>  dd interrupt_id
+   112 00000A3B E9E9000000          <1>  jmp exception_default
+   113                              <1> %assign interrupt_id interrupt_id+1
+   109                              <1> exception_stub%+interrupt_id:
+   110 00000A40 68                  <1>  db 0x68
+   111 00000A41 E3000000            <1>  dd interrupt_id
+   112 00000A45 E9DF000000          <1>  jmp exception_default
+   113                              <1> %assign interrupt_id interrupt_id+1
+   109                              <1> exception_stub%+interrupt_id:
+   110 00000A4A 68                  <1>  db 0x68
+   111 00000A4B E4000000            <1>  dd interrupt_id
+   112 00000A4F E9D5000000          <1>  jmp exception_default
+   113                              <1> %assign interrupt_id interrupt_id+1
+   109                              <1> exception_stub%+interrupt_id:
+   110 00000A54 68                  <1>  db 0x68
+   111 00000A55 E5000000            <1>  dd interrupt_id
+   112 00000A59 E9CB000000          <1>  jmp exception_default
+   113                              <1> %assign interrupt_id interrupt_id+1
+   109                              <1> exception_stub%+interrupt_id:
+   110 00000A5E 68                  <1>  db 0x68
+   111 00000A5F E6000000            <1>  dd interrupt_id
+   112 00000A63 E9C1000000          <1>  jmp exception_default
+   113                              <1> %assign interrupt_id interrupt_id+1
+   109                              <1> exception_stub%+interrupt_id:
+   110 00000A68 68                  <1>  db 0x68
+   111 00000A69 E7000000            <1>  dd interrupt_id
+   112 00000A6D E9B7000000          <1>  jmp exception_default
+   113                              <1> %assign interrupt_id interrupt_id+1
+   109                              <1> exception_stub%+interrupt_id:
+   110 00000A72 68                  <1>  db 0x68
+   111 00000A73 E8000000            <1>  dd interrupt_id
+   112 00000A77 E9AD000000          <1>  jmp exception_default
+   113                              <1> %assign interrupt_id interrupt_id+1
+   109                              <1> exception_stub%+interrupt_id:
+   110 00000A7C 68                  <1>  db 0x68
+   111 00000A7D E9000000            <1>  dd interrupt_id
+   112 00000A81 E9A3000000          <1>  jmp exception_default
+   113                              <1> %assign interrupt_id interrupt_id+1
+   109                              <1> exception_stub%+interrupt_id:
+   110 00000A86 68                  <1>  db 0x68
+   111 00000A87 EA000000            <1>  dd interrupt_id
+   112 00000A8B E999000000          <1>  jmp exception_default
+   113                              <1> %assign interrupt_id interrupt_id+1
+   109                              <1> exception_stub%+interrupt_id:
+   110 00000A90 68                  <1>  db 0x68
+   111 00000A91 EB000000            <1>  dd interrupt_id
+   112 00000A95 E98F000000          <1>  jmp exception_default
+   113                              <1> %assign interrupt_id interrupt_id+1
+   109                              <1> exception_stub%+interrupt_id:
+   110 00000A9A 68                  <1>  db 0x68
+   111 00000A9B EC000000            <1>  dd interrupt_id
+   112 00000A9F E985000000          <1>  jmp exception_default
+   113                              <1> %assign interrupt_id interrupt_id+1
+   109                              <1> exception_stub%+interrupt_id:
+   110 00000AA4 68                  <1>  db 0x68
+   111 00000AA5 ED000000            <1>  dd interrupt_id
+   112 00000AA9 EB7E                <1>  jmp exception_default
+   113                              <1> %assign interrupt_id interrupt_id+1
+   109                              <1> exception_stub%+interrupt_id:
+   110 00000AAB 68                  <1>  db 0x68
+   111 00000AAC EE000000            <1>  dd interrupt_id
+   112 00000AB0 EB77                <1>  jmp exception_default
+   113                              <1> %assign interrupt_id interrupt_id+1
+   109                              <1> exception_stub%+interrupt_id:
+   110 00000AB2 68                  <1>  db 0x68
+   111 00000AB3 EF000000            <1>  dd interrupt_id
+   112 00000AB7 EB70                <1>  jmp exception_default
+   113                              <1> %assign interrupt_id interrupt_id+1
+   109                              <1> exception_stub%+interrupt_id:
+   110 00000AB9 68                  <1>  db 0x68
+   111 00000ABA F0000000            <1>  dd interrupt_id
+   112 00000ABE EB69                <1>  jmp exception_default
+   113                              <1> %assign interrupt_id interrupt_id+1
+   109                              <1> exception_stub%+interrupt_id:
+   110 00000AC0 68                  <1>  db 0x68
+   111 00000AC1 F1000000            <1>  dd interrupt_id
+   112 00000AC5 EB62                <1>  jmp exception_default
+   113                              <1> %assign interrupt_id interrupt_id+1
+   109                              <1> exception_stub%+interrupt_id:
+   110 00000AC7 68                  <1>  db 0x68
+   111 00000AC8 F2000000            <1>  dd interrupt_id
+   112 00000ACC EB5B                <1>  jmp exception_default
+   113                              <1> %assign interrupt_id interrupt_id+1
+   109                              <1> exception_stub%+interrupt_id:
+   110 00000ACE 68                  <1>  db 0x68
+   111 00000ACF F3000000            <1>  dd interrupt_id
+   112 00000AD3 EB54                <1>  jmp exception_default
+   113                              <1> %assign interrupt_id interrupt_id+1
+   109                              <1> exception_stub%+interrupt_id:
+   110 00000AD5 68                  <1>  db 0x68
+   111 00000AD6 F4000000            <1>  dd interrupt_id
+   112 00000ADA EB4D                <1>  jmp exception_default
+   113                              <1> %assign interrupt_id interrupt_id+1
+   109                              <1> exception_stub%+interrupt_id:
+   110 00000ADC 68                  <1>  db 0x68
+   111 00000ADD F5000000            <1>  dd interrupt_id
+   112 00000AE1 EB46                <1>  jmp exception_default
+   113                              <1> %assign interrupt_id interrupt_id+1
+   109                              <1> exception_stub%+interrupt_id:
+   110 00000AE3 68                  <1>  db 0x68
+   111 00000AE4 F6000000            <1>  dd interrupt_id
+   112 00000AE8 EB3F                <1>  jmp exception_default
+   113                              <1> %assign interrupt_id interrupt_id+1
+   109                              <1> exception_stub%+interrupt_id:
+   110 00000AEA 68                  <1>  db 0x68
+   111 00000AEB F7000000            <1>  dd interrupt_id
+   112 00000AEF EB38                <1>  jmp exception_default
+   113                              <1> %assign interrupt_id interrupt_id+1
+   109                              <1> exception_stub%+interrupt_id:
+   110 00000AF1 68                  <1>  db 0x68
+   111 00000AF2 F8000000            <1>  dd interrupt_id
+   112 00000AF6 EB31                <1>  jmp exception_default
+   113                              <1> %assign interrupt_id interrupt_id+1
+   109                              <1> exception_stub%+interrupt_id:
+   110 00000AF8 68                  <1>  db 0x68
+   111 00000AF9 F9000000            <1>  dd interrupt_id
+   112 00000AFD EB2A                <1>  jmp exception_default
+   113                              <1> %assign interrupt_id interrupt_id+1
+   109                              <1> exception_stub%+interrupt_id:
+   110 00000AFF 68                  <1>  db 0x68
+   111 00000B00 FA000000            <1>  dd interrupt_id
+   112 00000B04 EB23                <1>  jmp exception_default
+   113                              <1> %assign interrupt_id interrupt_id+1
+   109                              <1> exception_stub%+interrupt_id:
+   110 00000B06 68                  <1>  db 0x68
+   111 00000B07 FB000000            <1>  dd interrupt_id
+   112 00000B0B EB1C                <1>  jmp exception_default
+   113                              <1> %assign interrupt_id interrupt_id+1
+   109                              <1> exception_stub%+interrupt_id:
+   110 00000B0D 68                  <1>  db 0x68
+   111 00000B0E FC000000            <1>  dd interrupt_id
+   112 00000B12 EB15                <1>  jmp exception_default
+   113                              <1> %assign interrupt_id interrupt_id+1
+   109                              <1> exception_stub%+interrupt_id:
+   110 00000B14 68                  <1>  db 0x68
+   111 00000B15 FD000000            <1>  dd interrupt_id
+   112 00000B19 EB0E                <1>  jmp exception_default
+   113                              <1> %assign interrupt_id interrupt_id+1
+   109                              <1> exception_stub%+interrupt_id:
+   110 00000B1B 68                  <1>  db 0x68
+   111 00000B1C FE000000            <1>  dd interrupt_id
+   112 00000B20 EB07                <1>  jmp exception_default
+   113                              <1> %assign interrupt_id interrupt_id+1
+   109                              <1> exception_stub%+interrupt_id:
+   110 00000B22 68                  <1>  db 0x68
+   111 00000B23 FF000000            <1>  dd interrupt_id
+   112 00000B27 EB00                <1>  jmp exception_default
+   113                              <1> %assign interrupt_id interrupt_id+1
+   115                                  
+   116                                  exception_default:
+   117 00000B29 FA                          cli
+   118 00000B2A 66B81800                    mov ax,SELECTOR_VIDEO
+   119 00000B2E 8EE8                        mov gs,ax
+   120 00000B30 6566C705000F00005B-         mov word [gs:0xF00],0x4f5b
+   120 00000B39 4F                 
+   121 00000B3A 6566C705020F000045-         mov word [gs:0xF02],0x4f45
+   121 00000B43 4F                 
+   122 00000B44 6566C705040F000058-         mov word [gs:0xF04],0x4f58
+   122 00000B4D 4F                 
+   123 00000B4E 6566C705060F000043-         mov word [gs:0xF06],0x4f43
+   123 00000B57 4F                 
+   124 00000B58 6566C705080F00003A-         mov word [gs:0xF08],0x4f3a
+   124 00000B61 4F                 
+   125                                  
+   126 00000B62 BF0A0F0000                  mov edi,0xF0A
+   127 00000B67 8B0424                      mov eax,[esp]
+   128 00000B6A 89C2                        mov edx,eax
+   129 00000B6C C1E804                      shr eax,4
+   130 00000B6F E814000000                  call display_hex_digit
+   131 00000B74 89D0                        mov eax,edx
+   132 00000B76 E80D000000                  call display_hex_digit
+   133 00000B7B 6566C705100F00005D-         mov word [gs:0xF10],0x4f5d
+   133 00000B84 4F                 
+   134                                  
+   135                                  .halt:
+   136 00000B85 F4                          hlt
+   137 00000B86 EBFD                        jmp .halt
+   138                                  
+   139                                  display_hex_digit:
+   140 00000B88 83E00F                      and eax,0x0f
+   141 00000B8B 3C0A                        cmp al,10
+   142 00000B8D 7204                        jb .number
+   143 00000B8F 0437                        add al,'A'-10
+   144 00000B91 EB02                        jmp .write
+   145                                  .number:
+   146 00000B93 0430                        add al,'0'
+   147                                  .write:
+   148 00000B95 658807                      mov byte [gs:edi],al
+   149 00000B98 83C702                      add edi,2
+   150 00000B9B C3                          ret
+   151                                  
+   152                                  setup_page:
+   153 00000B9C BF00001000                  mov edi, PD
+   154 00000BA1 B900040000                  mov ecx, 1024
+   155 00000BA6 31C0                        xor eax, eax
+   156 00000BA8 F3AB                        rep stosd
+   157                                  
+   158 00000BAA BF00101000                  mov edi, PT
+   159 00000BAF B900040000                  mov ecx, 1024
+   160 00000BB4 31C0                        xor eax, eax
+   161 00000BB6 F3AB                        rep stosd
+   162                                      
+   163 00000BB8 C70500001000031010-         mov dword [PD], PT + 0x3
+   163 00000BC1 00                 
+   164                                  
+   165 00000BC2 BF00101000                  mov edi, PT
+   166 00000BC7 31C0                        xor eax, eax
+   167 00000BC9 B900040000                  mov ecx, 1024
+   168                                  .fill_pt:
+   169 00000BCE 89C2                        mov edx, eax
+   170 00000BD0 83CA03                      or edx, 0x3
+   171 00000BD3 8917                        mov [edi], edx
+   172 00000BD5 83C704                      add edi, 4
+   173 00000BD8 0500100000                  add eax, 4096
+   174 00000BDD E2EF                        loop .fill_pt
+   175                                  
+   176 00000BDF B800001000                  mov eax, PD
+   177 00000BE4 0F22D8                      mov cr3, eax
+   178                                  
+   179 00000BE7 0F20C0                      mov eax, cr0
+   180 00000BEA 0D00000080                  or eax, 0x80000000
+   181 00000BEF 0F22C0                      mov cr0, eax
+   182                                  
+   183 00000BF2 EA[F90B0000]0800            jmp dword SELECTOR_CODE32:after_pg
+   184                                  
+   185                                  after_pg:
+   186 00000BF9 65C605A00000005B            mov byte [gs:0xA0],'['
+   187 00000C01 65C605A20000004F            mov byte [gs:0xA2],'O'
+   188 00000C09 65C605A40000004B            mov byte [gs:0xA4],'K'
+   189 00000C11 65C605A60000005D            mov byte [gs:0xA6],']'
+   190 00000C19 65C605A800000020            mov byte [gs:0xA8],' '  
+   191 00000C21 65C605AA0000004C            mov byte [gs:0xAA],'L'
+   192 00000C29 65C605AC0000004F            mov byte [gs:0xAC],'O'
+   193 00000C31 65C605AE00000041            mov byte [gs:0xAE],'A' 
+   194 00000C39 65C605B000000044            mov byte [gs:0xB0],'D'
+   195 00000C41 65C605B200000045            mov byte [gs:0xB2],'E'
+   196 00000C49 65C605B400000052            mov byte [gs:0xB4],'R'
+   197 00000C51 65C605B800000033            mov byte [gs:0xB8],'3'
+   198 00000C59 65C605BA00000032            mov byte [gs:0xBA],'2'
+   199 00000C61 65C605BE00000050            mov byte [gs:0xBE],'P'
+   200 00000C69 65C605C000000047            mov byte [gs:0xC0],'G'
+   201 00000C71 65C605C200000032            mov byte [gs:0xC2],'2'

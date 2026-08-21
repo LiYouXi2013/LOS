@@ -4,8 +4,8 @@ all: run
 
 compile: 
 	echo =================== Compile ===================
-	nasm src/boot/boot.asm -i src/include/ -o build/boot.bin
-	nasm src/loader/loader.asm -i src/include/ -o build/loader.bin
+	nasm src/boot/boot.asm -i src/include/ -o build/boot.bin -l debug/boot.lst
+	nasm src/loader/loader.asm -i src/include/ -o build/loader.bin -l debug/loader.lst
 
 build: compile
 	echo =================== Build =====================
