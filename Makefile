@@ -2,10 +2,14 @@
 
 all: run
 
+init: 
+	mkdir build
+	mkdir build/lsts
+
 compile: 
 	echo =================== Compile ===================
-	nasm src/boot/boot.asm -i src/include/ -o build/boot.bin -l debug/boot.lst
-	nasm src/loader/loader.asm -i src/include/ -o build/loader.bin -l debug/loader.lst
+	nasm src/boot/boot.asm -i src/include/ -o build/boot.bin -l build/lsts/boot.lst
+	nasm src/loader/loader.asm -i src/include/ -o build/loader.bin -l build/lsts/loader.lst
 
 build: compile
 	echo =================== Build =====================
